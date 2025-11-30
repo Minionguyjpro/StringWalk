@@ -1,0 +1,15 @@
+[project]
+name = "StringWalk"
+version = "0.1.0"
+description = "A Python Game"
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6",
+]
+
+[project.scripts]
+stringwalk = "stringwalk.main:run"   # `stringwalk` becomes a command
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
