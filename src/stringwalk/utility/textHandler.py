@@ -2,14 +2,28 @@ from .configHandler import readConfigItem
 from pathlib import Path
 from .jsonParser import parseJson
 
-async def getText(key: str):
+async def getText(keys):
+    """
+    Get one or multiple translation strings.
+    :param keys: str or list of str
+    :return: single string if keys is str, or list of strings if keys is list
+    """
+    single = False
+    if isinstance(keys, str):
+        keys = [keys]
+        single = True
+    
     # Get the current language in the config
     lang = await readConfigItem("lang")
-
     root = Path(__file__).parent.parent
 
-    json_path = root / "i18n" / f"{lang}/json"
+    if lang is None:
+        # Set a fallback language in case the config cannot be read
+        json_path = root / "i18n" / "en.json"
+    else:
+        json_path = root / "i18n" / f"{lang}.json"
 
-    data = parseJson(json_path, key)
+    results = [parseJson(json_path, key) for key in keys]
 
-    return data
+    # Return result(s)
+    return results

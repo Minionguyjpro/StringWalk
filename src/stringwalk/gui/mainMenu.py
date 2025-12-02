@@ -1,29 +1,38 @@
-from PyQt6.QtWidgets import QWidget, QPushButton, QVBoxLayout
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QWidget, QPushButton, QSizePolicy, QVBoxLayout
+from PyQt6.QtCore import pyqtSignal, Qt
+import asyncio
 from ..utility.textHandler import getText
+from ..utility.buttonHandler import handleButton
+from functools import partial
 
-async def fetch_i18n_keys():
-    start_text = await getText("start")
-    settings_text = await getText("settings")
-    exit_text = await getText("exit")
-    print(start_text, settings_text, exit_text)
-    return start_text, settings_text, exit_text
-
-def createMenu(parent=None, texts=None):
+def createMenu(parent=None):
     widget = QWidget(parent)
     layout = QVBoxLayout()
+    layout.setContentsMargins(50, 50, 50, 50)
+    layout.setSpacing(20)
 
-    btn_start = QPushButton(texts[0])
-    btn_settings = QPushButton(texts[1])
-    btn_exit = QPushButton(texts[2])
-    layout.addWidget(btn_start)
-    layout.addWidget(btn_settings)
-    layout.addWidget(btn_exit)
+    layout.addStretch()
+
+    keys = ["start", "settings", "exit"]
+    texts = asyncio.run(getText(keys))
+
+    actions = [
+        lambda w=None: print("Start pressed!"),           # Start button
+        lambda w=None: print("Settings pressed!"),        # Settings button
+        lambda w=None: exit()                             # Exit button
+    ]
+
+    buttons = []
+    for text, action in zip(texts, actions):
+        btn = QPushButton(text)
+        btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        btn.setMinimumHeight(40)
+        btn.setMinimumWidth(200)
+        btn.clicked.connect(partial(handleButton, action, widget))
+        layout.addWidget(btn)
+
+    layout.addStretch()
 
     widget.setLayout(layout)
+    widget.show()
     return widget
-
-async def main():
-    texts = await fetch_i18n_keys()  # fetch strings first
-    menu_widget = createMenu(texts=texts)
-    menu_widget.show()
