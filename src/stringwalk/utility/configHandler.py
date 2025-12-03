@@ -3,6 +3,7 @@ from .projectNameHandler import getProjectName
 from .jsonParser import writeJson, parseJson
 import os
 import sys
+import json
 import asyncio
 
 def getConfigPath():
@@ -22,7 +23,7 @@ def getConfigPath():
 def getDefaultConfigPath():
     """Path to your packaged default config."""
     # This file is ../config/config.json relative to THIS file
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[1]
     return root / "config" / "config.json"
 
 async def writeConfig(data: dict):

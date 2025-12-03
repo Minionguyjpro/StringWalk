@@ -3,9 +3,10 @@ from PyQt6.QtCore import pyqtSignal, Qt
 import asyncio
 from ..utility.textHandler import getText
 from ..utility.buttonHandler import handleButton
+from ..gui.mainMenu import createMenu
 from functools import partial
 
-def createMenu(openSettings, parent=None):
+def createSettingsMenu(goBack, parent=None):
     widget = QWidget(parent)
     layout = QVBoxLayout()
     layout.setContentsMargins(50, 50, 50, 50)
@@ -13,13 +14,12 @@ def createMenu(openSettings, parent=None):
 
     layout.addStretch()
 
-    keys = ["start", "settings", "exit"]
+    keys = ["language", "back"]
     texts = asyncio.run(getText(keys))
 
     actions = [
-        lambda w=None: print("Start pressed!"),           # Start button
-        lambda w=None: openSettings(),              # Settings button
-        lambda w=None: exit()                             # Exit button
+        lambda w=None: None, 
+        lambda w=None: goBack()
     ]
 
     buttons = []

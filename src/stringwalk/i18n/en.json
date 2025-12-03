@@ -2,5 +2,8 @@
     "title": "StringWalk",
     "start": "Start",
     "settings": "Settings",
-    "exit": "Exit"
+    "exit": "Exit",
+
+    "language": "Language",
+    "back": "Back"
 }
