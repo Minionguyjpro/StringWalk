@@ -3,36 +3,38 @@ from PyQt6.QtCore import pyqtSignal, Qt
 import asyncio
 from ..utility.textHandler import getText
 from ..utility.buttonHandler import handleButton
-from ..gui.mainMenu import createMenu
+from ..gui.mainMenu import createMainMenu
 from functools import partial
 
 def createSettingsMenu(goBack, parent=None):
-    widget = QWidget(parent)
-    layout = QVBoxLayout()
-    layout.setContentsMargins(50, 50, 50, 50)
-    layout.setSpacing(20)
+    class SettingsMenu(QWidget):
+        def __init__(self, goBack, parent=None):
+            super().__init__(parent)
+            self.goBack = goBack
 
-    layout.addStretch()
+            layout = QVBoxLayout()
+            layout.setContentsMargins(50, 50, 50, 50)
+            layout.setSpacing(20)
+            layout.addStretch()
 
-    keys = ["language", "back"]
-    texts = asyncio.run(getText(keys))
+            keys = ["language", "back"]
+            texts = asyncio.run(getText(keys))
 
-    actions = [
-        lambda w=None: None, 
-        lambda w=None: goBack()
-    ]
+            actions = [
+                lambda w=None: None, 
+                lambda w=None: self.goBack() if self.goBack else None
+            ]
 
-    buttons = []
-    for text, action in zip(texts, actions):
-        btn = QPushButton(text)
-        btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        btn.setMinimumHeight(40)
-        btn.setMinimumWidth(200)
-        btn.clicked.connect(partial(handleButton, action, widget))
-        layout.addWidget(btn)
+            buttons = []
+            for text, action in zip(texts, actions):
+                btn = QPushButton(text)
+                btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+                btn.setMinimumHeight(40)
+                btn.setMinimumWidth(200)
+                btn.clicked.connect(partial(handleButton, action, self))
+                layout.addWidget(btn)
 
-    layout.addStretch()
+            layout.addStretch()
+            self.setLayout(layout)
 
-    widget.setLayout(layout)
-    widget.show()
-    return widget
+    return SettingsMenu(goBack, parent)

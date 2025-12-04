@@ -5,34 +5,36 @@ from ..utility.textHandler import getText
 from ..utility.buttonHandler import handleButton
 from functools import partial
 
-def createMenu(openSettings, parent=None):
-    widget = QWidget(parent)
-    layout = QVBoxLayout()
-    layout.setContentsMargins(50, 50, 50, 50)
-    layout.setSpacing(20)
+def createMainMenu(openSettings, parent=None):
+    class MainMenu(QWidget):
+        def __init__(self, openSettings, parent=None):
+            super().__init__(parent)
+            self.openSettings = openSettings
+    
+            layout = QVBoxLayout()
+            layout.setContentsMargins(50, 50, 50, 50)
+            layout.setSpacing(20)
+            layout.addStretch()
 
-    layout.addStretch()
+            keys = ["start", "settings", "exit"]
+            texts = asyncio.run(getText(keys))
 
-    keys = ["start", "settings", "exit"]
-    texts = asyncio.run(getText(keys))
+            actions = [
+                lambda w=None: print("Start pressed!"),                             # Start button
+                lambda w=None: self.openSettings() if self.openSettings else None,  # Settings button
+                lambda w=None: exit()                                               # Exit button
+            ]
 
-    actions = [
-        lambda w=None: print("Start pressed!"),           # Start button
-        lambda w=None: openSettings(),              # Settings button
-        lambda w=None: exit()                             # Exit button
-    ]
+            buttons = []
+            for text, action in zip(texts, actions):
+                btn = QPushButton(text)
+                btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+                btn.setMinimumHeight(40)
+                btn.setMinimumWidth(200)
+                btn.clicked.connect(partial(handleButton, action, self))
+                layout.addWidget(btn)
 
-    buttons = []
-    for text, action in zip(texts, actions):
-        btn = QPushButton(text)
-        btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        btn.setMinimumHeight(40)
-        btn.setMinimumWidth(200)
-        btn.clicked.connect(partial(handleButton, action, widget))
-        layout.addWidget(btn)
-
-    layout.addStretch()
-
-    widget.setLayout(layout)
-    widget.show()
-    return widget
+            layout.addStretch()
+            self.setLayout(layout)
+ 
+    return MainMenu(openSettings, parent)

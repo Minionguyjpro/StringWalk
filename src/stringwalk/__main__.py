@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton
 from .utility.projectNameHandler import getProjectName
-from .gui.mainMenu import createMenu
+from .gui.mainMenu import createMainMenu
 from .gui.settingsMenu import createSettingsMenu
 import asyncio
 import sys
@@ -17,7 +17,7 @@ def gameExec():
             self.showMainMenu()
 
         def showMainMenu(self):
-            menu = createMenu(self.showSettingsMenu, parent=self)
+            menu = createMainMenu(self.showSettingsMenu, parent=self)
             self.setCentralWidget(menu)
 
         def showSettingsMenu(self):
