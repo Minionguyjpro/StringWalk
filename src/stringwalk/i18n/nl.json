@@ -1,6 +1,11 @@
 {
+    "lang_name": "Nederlands",
+    
     "title": "StringWalk",
     "start": "Starten",
     "settings": "Instellingen",
-    "exit": "Afsluiten"
+    "exit": "Afsluiten",
+
+    "language": "Taal",
+    "back": "Terug"
 }

@@ -6,6 +6,7 @@ import sys
 import json
 import asyncio
 
+
 def getConfigPath():
     """Path to the config."""
     home = Path.home()
@@ -30,6 +31,16 @@ async def writeConfig(data: dict):
     loop = asyncio.get_running_loop()
     config_file = await loop.run_in_executor(None, getConfigPath)
     await asyncio.to_thread(writeJson, config_file, data)
+
+async def writeConfigItem(key: str, value):
+    loop = asyncio.get_running_loop()
+    config_file = await loop.run_in_executor(None, getConfigPath)
+
+    config = await asyncio.to_thread(parseJson, config_file)
+
+    config[key] = value
+
+    await asyncio.to_thread(writeJson, config_file, config)
 
 async def readConfigItem(key: str, default=None):
     config_file = getConfigPath()

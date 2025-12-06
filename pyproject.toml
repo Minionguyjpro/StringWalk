@@ -5,6 +5,8 @@ description = "A Python Game"
 requires-python = ">=3.11"
 dependencies = [
     "PyQt6",
+    "qasync",
+    "nest_asyncio",
 ]
 
 [project.scripts]

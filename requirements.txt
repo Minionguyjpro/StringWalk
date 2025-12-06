@@ -1,1 +1,3 @@
 pyqt6
+qasync
+nest_asyncio

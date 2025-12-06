@@ -2,6 +2,7 @@ from .configHandler import readConfigItem
 from pathlib import Path
 from .jsonParser import parseJson
 
+
 async def getText(keys):
     """
     Get one or multiple translation strings.

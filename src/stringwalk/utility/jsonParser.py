@@ -1,5 +1,6 @@
 import json
 
+
 def parseJson(file: str, key: str = None):
     try:
         with open(file, "r", encoding="utf-8") as f:
