@@ -2,9 +2,10 @@ from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ..utility.data.textHandler import getText
-from ..utility.audio.soundHandler import playSound
+from ..utility.audio.soundHandler import playSound, toggleSound, isSoundPlaying
 from ..utility.data.projectNameHandler import getProjectNameLower
-from ..utility.ui.buttonHandler import create_action
+from ..utility.ui.buttonHandler import reloadButton, create_action
+from ..utility.audio.soundHandler import isSoundPlaying
 from ..utility.video.videoManager import VideoManager
 from ..gui.gameWidget import GameWidget
 from functools import partial
@@ -27,10 +28,13 @@ def createMainMenu(navigate, parent=None):
 
             # Main layout
             outer, inner = makeMenuLayout()
-            self.keys = ["start", "settings", "exit"]
+            self.keys = ["start", "settings", "exit", "sound"]
             self.layout_ref = inner
 
-            playSound("music", "lobby.mp3")
+            global lobbyMusic
+            lobbyMusic = "music", "lobby.mp3"
+
+            playSound(lobbyMusic[0], lobbyMusic[1])
 
             self._reload_texts()
 
@@ -42,6 +46,18 @@ def createMainMenu(navigate, parent=None):
 
         def __texts_loaded(self, task):
             texts = task.result()
+            
+            sound_btn = None  # Will store reference to sound button
+
+            def toggle_mute(_=None):
+                toggleSound(lobbyMusic[0], lobbyMusic[1])
+                # Update button visual state after toggle
+                if sound_btn:
+                    if isSoundPlaying():
+                        sound_btn.setProperty("variant", "sound")
+                    else:
+                        sound_btn.setProperty("variant", "mute")
+                    reloadButton(sound_btn)
 
             actions = [
                 lambda w=None: self.start_game(),
@@ -53,7 +69,8 @@ def createMainMenu(navigate, parent=None):
                     key="SettingsMenu",
                     parent=self.parent_window
                 ),
-                lambda w=None: QApplication.quit()
+                lambda w=None: QApplication.quit(),
+                toggle_mute
             ]
 
             # Clear old widgets first
@@ -64,10 +81,19 @@ def createMainMenu(navigate, parent=None):
                     widget.setParent(None)
 
             # Add buttons
-            for text, action in zip(texts, actions):
+            for key, text, action in zip(self.keys, texts, actions):
                 btn = QPushButton(text)
                 btn.clicked.connect(action)
                 addMenuWidget(self.layout_ref, btn)
+
+                if key == "sound":
+                    sound_btn = btn  # Store reference
+                    if isSoundPlaying():
+                        btn.setProperty("variant", "sound")
+                    else:
+                        btn.setProperty("variant", "mute")
+
+                    reloadButton(btn)  # Apply the new property to update the style
 
             self.layout_ref.addStretch()
             finalizeMenuLayout(self)

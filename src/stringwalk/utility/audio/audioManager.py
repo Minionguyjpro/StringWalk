@@ -11,6 +11,7 @@ class AudioManager:
         self.music_player = QMediaPlayer()
         self.music_output = QAudioOutput()
         self.music_player.setAudioOutput(self.music_output)
+        self.music_muted = False
 
         self.sfx_player = QMediaPlayer()
         self.sfx_output = QAudioOutput()

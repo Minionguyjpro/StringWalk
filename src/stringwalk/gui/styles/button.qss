@@ -48,6 +48,40 @@ QComboBox[variant="setting"]:pressed {
     background-color: #2772a4;
 }
 
+/* Mute button only */
+QPushButton[variant="mute"],
+QPushButton[variant="sound"] {
+    min-width: 56px;
+    max-width: 56px;   /* fixed width */
+    min-height: 56px;
+    max-height: 56px;
+    padding: 0px;
+
+    border-radius: 12px;
+    background-color: #2f6f4e;
+    border: 2px solid #214d36;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+QPushButton[variant="mute"] {
+    background-image: url("src/stringwalk/assets/icons/mute.svg");
+}
+
+QPushButton[variant="sound"] {
+    background-image: url("src/stringwalk/assets/icons/sound.svg");
+}
+
+QPushButton[variant="mute"]:hover,
+QPushButton[variant="sound"]:hover {
+    background-color: #3f8a5f;
+}
+
+QPushButton[variant="mute"]:pressed,
+QPushButton[variant="sound"]:pressed {
+    background-color: #214d36;
+}
+
 /* Disabled state (shared) */
 QPushButton:disabled,
 QComboBox:disabled {

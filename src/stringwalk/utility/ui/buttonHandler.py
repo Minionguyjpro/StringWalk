@@ -10,6 +10,14 @@ def handleButton(action, widget=None):
     if callable(action):
         action(widget)
 
+def reloadButton(button: QPushButton):
+    """
+    Re-applies the current stylesheet to the button.
+    Useful for dynamic property changes (e.g. mute/unmute).
+    """
+    button.style().unpolish(button)
+    button.style().polish(button)
+
 def create_action(button: QPushButton, func) -> function:
     """
     Wraps a function with SFX logic.
