@@ -1,14 +1,23 @@
-from PyQt6.QtWidgets import QApplication
 from ..utility.ui.asyncWidget import AsyncWidget
+from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget
+from ..utility.audio.soundHandler import stopSound
+from ..utility.configHandler import readConfigItem
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QLabel
+import time
+import asyncio
+import random
 
 class GameWidget(AsyncWidget):
     def __init__(self, parent=None, on_exit=None):
-        super().__init__()
+        super().__init__(parent)
         self.on_exit = on_exit
         self.setWindowTitle("Simple Game")
-        self.setFixedSize(600, 400)
+        self.setMinimumSize(600, 400)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        stopSound()  # Stop any music from the main menu when entering the game
 
         # Player block properties
         self.player_x = 50
@@ -19,47 +28,173 @@ class GameWidget(AsyncWidget):
         self.speed = 5
 
         # Floor
-        self.floor_y = 350
-        self.floor_height = 50
-        self.floor_color = QColor("darkgreen")
+        self.floor_height = 80
+        self.segment_width = 50
+
+        available_colors = [
+            "darkgreen",
+            "green",
+            "forestgreen",
+            "limegreen",
+            "seagreen",
+            "mediumseagreen",
+            "springgreen",
+            "mediumspringgreen",
+            "lightgreen",
+            "palegreen"
+        ]
+
+        self.floor_segments = [random.choice(available_colors) for _ in range(100)] 
+
+        self.floor_y = self.height() - self.floor_height
+
+        # Physics
+        self.gravity = 0.8
+        self.jump_velocity = -14.0
+        self.velocity_y = 0.0
+        self.is_on_ground = True
+
+        # Keys that can trigger left movement
+        self.LEFT_KEYS = [
+            Qt.Key.Key_Left,
+            Qt.Key.Key_A
+        ]
+
+        # Keys that can trigger right movement
+        self.RIGHT_KEYS = [
+            Qt.Key.Key_Right,
+            Qt.Key.Key_D
+        ]
+
+        # Keys that can trigger a jump
+        self.JUMP_KEYS = [
+            Qt.Key.Key_Up,
+            Qt.Key.Key_W,
+            Qt.Key.Key_Space
+        ]
+
+        # Keys that can trigger downward movement
+        self.DOWN_KEYS = [
+            Qt.Key.Key_Down,
+            Qt.Key.Key_S
+        ]
+
+        self.last_time = time.time()
+        self.frame_count = 0
+        self.fps_accumulated = 0
+
+        self.target_fps = 60
+
+        self.update_interval = int(1000 / self.target_fps)  # Update interval in milliseconds for the timer
 
         # Timer to update the game (60 FPS)
         self.timer = QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(16)  # ~60 FPS
+        self.timer.timeout.connect(self._tick)
+        self.timer.start(self.update_interval)
 
         # Currently pressed keys
         self.keys_pressed = set()
 
+        self.fps_label = QLabel(None, self)
+        self.fps_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+
+        asyncio.create_task(self._apply_settings())
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Ensure the widget receives keyboard events immediately.
+        self.setFocus()
+
     def paintEvent(self, event):
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        painter.fillRect(event.rect(), QColor("#1e1e1e"))
         
-        # Draw floor
-        painter.fillRect(0, self.floor_y, self.width(), self.floor_height, self.floor_color)
+        # Draw floor segments
+        floor_y = int(round(self.floor_y))
+        for i, color_name in enumerate(self.floor_segments):
+            x_pos = i * self.segment_width
+            if x_pos > self.width():
+                break
+                
+            painter.fillRect(x_pos, floor_y, self.segment_width, self.floor_height, QColor(color_name))
 
         # Draw player block
-        painter.fillRect(self.player_x, self.player_y, self.player_width, self.player_height, self.player_color)
+        player_x = int(round(self.player_x))
+        player_y = int(round(self.player_y))
+        painter.fillRect(player_x, player_y, self.player_width, self.player_height, self.player_color)
+
+        painter.end()
 
     def keyPressEvent(self, event: QKeyEvent):
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
+            return
+        
+        if event.key() in self.JUMP_KEYS and self.is_on_ground:
+            self.velocity_y = self.jump_velocity
+            self.is_on_ground = False
+
         self.keys_pressed.add(event.key())
         self.handle_movement()
+        self.update()
 
     def keyReleaseEvent(self, event: QKeyEvent):
         if event.key() in self.keys_pressed:
             self.keys_pressed.remove(event.key())
 
+    def closeEvent(self, event):
+        self.timer.stop()
+        if callable(self.on_exit):
+            self.on_exit()
+        super().closeEvent(event)
+
+    def _tick(self):
+        current_time = time.time()
+        delta_time = current_time - self.last_time
+        self.last_time = current_time
+
+        if delta_time > 0:
+            actual_fps = 1 / delta_time
+            self.fps_label.setText(f"FPS: {int(actual_fps)}")
+            self.fps_label.adjustSize()
+
+        self.handle_movement()
+        self.update()
+
     def handle_movement(self):
-        if Qt.Key.Key_Left in self.keys_pressed:
+        if any(key in self.keys_pressed for key in self.LEFT_KEYS):
             self.player_x = max(0, self.player_x - self.speed)
-        if Qt.Key.Key_Right in self.keys_pressed:
+        if any(key in self.keys_pressed for key in self.RIGHT_KEYS):
             self.player_x = min(self.width() - self.player_width, self.player_x + self.speed)
-        if Qt.Key.Key_Up in self.keys_pressed:
+        if any(key in self.keys_pressed for key in self.JUMP_KEYS):
             self.player_y = max(0, self.player_y - self.speed)
-        if Qt.Key.Key_Down in self.keys_pressed:
+        if any(key in self.keys_pressed for key in self.DOWN_KEYS):
             self.player_y = min(self.floor_y - self.player_height, self.player_y + self.speed)
 
-if __name__ == "__main__":
-    app = QApplication([])
-    window = GameWindow()
-    window.show()
-    app.exec()
+        # Vertical physics
+        self.velocity_y += self.gravity
+        self.player_y += self.velocity_y
+
+        ground_top = self.floor_y - self.player_height
+        if self.player_y >= ground_top:
+            self.player_y = ground_top
+            self.velocity_y = 0
+            self.is_on_ground = True
+    
+    async def _apply_settings(self):
+        try:
+            config_fps_str = await readConfigItem("fps")
+            print(config_fps_str)
+            config_fps = int(config_fps_str)
+
+            if config_fps > 0:
+                self.target_fps = config_fps
+                self.update_interval = int(1000 / self.target_fps)
+                
+                self.timer.start(self.update_interval)
+                print(f"FPS adjusted to: {self.target_fps} (interval: {self.update_interval} ms)")
+        except Exception as e:
+            print(f"Error applying settings: {e}")

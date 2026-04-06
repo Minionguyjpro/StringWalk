@@ -1,11 +1,11 @@
-from PyQt6.QtWidgets import QPushButton
+from PyQt6.QtWidgets import QPushButton, QWidget
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ..utility.data.textHandler import getText
 from ..utility.data.projectNameHandler import getProjectNameLower
 
 
-def createSettingsMenu(navigate, parent=None):
+def createSettingsMenu(navigate, parent=None) -> QWidget:
     class SettingsMenu(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)

@@ -3,7 +3,7 @@ from pathlib import Path
 from ..jsonParser import parseJson
 
 
-async def getText(keys):
+async def getText(keys) -> str | list[str]:
     """
     Get one or multiple translation strings.
     :param keys: str or list of str

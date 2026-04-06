@@ -9,7 +9,7 @@ from ..utility.ui.buttonHandler import reloadButton
 from ..gui.gameWidget import GameWidget
 
 
-def createMainMenu(navigate, parent=None):
+def createMainMenu(navigate, parent=None) -> QWidget:
     class MainMenu(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)
@@ -112,11 +112,19 @@ def createMainMenu(navigate, parent=None):
                 self.parent_window.menu_container.hide()
 
             # Launch the game
-            self.parent_window.game_widget = GameWidget(on_exit=self.return_to_menu)
+            parent_container = getattr(self.parent_window, "central_container", self.parent_window)
+            self.parent_window.game_widget = GameWidget(parent=parent_container, on_exit=self.return_to_menu)
+            self.parent_window.game_widget.setGeometry(parent_container.rect())
+            self.parent_window.game_widget.show()
+            self.parent_window.game_widget.raise_()
+            self.parent_window.game_widget.setFocus()
 
         def return_to_menu(self):
             # Show menu container again when exiting game
             if self.parent_window and hasattr(self.parent_window, "menu_container"):
                 self.parent_window.menu_container.show()
+
+            if self.parent_window and hasattr(self.parent_window, "game_widget"):
+                self.parent_window.game_widget = None
 
     return MainMenu(navigate, parent=parent)
