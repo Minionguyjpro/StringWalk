@@ -51,10 +51,10 @@ QComboBox[variant="setting"]:pressed {
 /* Mute button only */
 QPushButton[variant="mute"],
 QPushButton[variant="sound"] {
-    min-width: 56px;
-    max-width: 56px;   /* fixed width */
-    min-height: 56px;
-    max-height: 56px;
+    min-width: 60px;
+    max-width: 60px;   /* fixed width */
+    min-height: 60px;
+    max-height: 60px;
     padding: 0px;
 
     border-radius: 12px;

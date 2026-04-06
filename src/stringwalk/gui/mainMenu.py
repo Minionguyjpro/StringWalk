@@ -2,14 +2,11 @@ from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ..utility.data.textHandler import getText
-from ..utility.audio.soundHandler import playSound, toggleSound, isSoundPlaying
+from ..utility.audio.soundHandler import playSound, toggleSound
+from ..utility.audio.audioManager import audio
 from ..utility.data.projectNameHandler import getProjectNameLower
-from ..utility.ui.buttonHandler import reloadButton, create_action
-from ..utility.audio.soundHandler import isSoundPlaying
-from ..utility.video.videoManager import VideoManager
+from ..utility.ui.buttonHandler import reloadButton
 from ..gui.gameWidget import GameWidget
-from functools import partial
-import asyncio
 
 
 def createMainMenu(navigate, parent=None):
@@ -53,7 +50,7 @@ def createMainMenu(navigate, parent=None):
                 toggleSound(lobbyMusic[0], lobbyMusic[1])
                 # Update button visual state after toggle
                 if sound_btn:
-                    if isSoundPlaying():
+                    if not audio.music_muted:
                         sound_btn.setProperty("variant", "sound")
                     else:
                         sound_btn.setProperty("variant", "mute")
@@ -88,7 +85,7 @@ def createMainMenu(navigate, parent=None):
 
                 if key == "sound":
                     sound_btn = btn  # Store reference
-                    if isSoundPlaying():
+                    if not audio.music_muted:
                         btn.setProperty("variant", "sound")
                     else:
                         btn.setProperty("variant", "mute")

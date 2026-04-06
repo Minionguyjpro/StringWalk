@@ -1,12 +1,8 @@
-from PyQt6.QtWidgets import QWidget, QPushButton, QSizePolicy, QVBoxLayout
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtWidgets import QPushButton
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ..utility.data.textHandler import getText
 from ..utility.data.projectNameHandler import getProjectNameLower
-from ..utility.ui.buttonHandler import create_action
-from functools import partial
-import asyncio
 
 
 def createSettingsMenu(navigate, parent=None):
