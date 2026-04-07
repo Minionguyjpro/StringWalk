@@ -56,7 +56,7 @@ class GameWidget(AsyncWidget):
 
         self.world_offset_x = 0
 
-        self.camera_margin = 150
+        self.camera_margin = 80
 
         # Keys that can trigger left movement
         self.LEFT_KEYS = [
@@ -141,12 +141,12 @@ class GameWidget(AsyncWidget):
         # Draw player block
         player_x = int(round(self.player_x))
         player_y = int(round(self.player_y))
-        painter.fillRect(
+        painter.setBrush(self.player_color)
+        painter.drawEllipse(
             player_x,
             player_y,
             self.player_width,
             self.player_height,
-            self.player_color
         )
 
         painter.end()
