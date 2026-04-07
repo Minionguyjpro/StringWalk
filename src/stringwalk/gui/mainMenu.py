@@ -28,6 +28,8 @@ def createMainMenu(navigate, parent=None) -> QWidget:
             self.keys = ["start", "settings", "exit", "sound"]
             self.layout_ref = inner
 
+            self.pause_background = None
+
             global lobbyMusic
             lobbyMusic = "music", "lobby.mp3"
 
@@ -119,7 +121,7 @@ def createMainMenu(navigate, parent=None) -> QWidget:
             self.parent_window.game_widget.raise_()
             self.parent_window.game_widget.setFocus()
 
-        def return_to_menu(self):
+        def return_to_menu(self, pixmap=None):
             # Show menu container again when exiting game
             if self.parent_window and hasattr(self.parent_window, "menu_container"):
                 self.parent_window.menu_container.show()

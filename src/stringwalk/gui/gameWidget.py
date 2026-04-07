@@ -1,8 +1,9 @@
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget
 from ..utility.audio.soundHandler import stopSound
+from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
-from PyQt6.QtGui import QPainter, QColor, QKeyEvent
+from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QLabel
 import time
@@ -27,11 +28,14 @@ class GameWidget(AsyncWidget):
         self.player_color = QColor("red")
         self.speed = 5
 
+        self.border_color = QColor("black")
+        self.border_size = 0
+
         # Floor
         self.floor_height = 80
         self.segment_width = 50
 
-        available_colors = [
+        self.AVAILABLE_COLORS = [
             "darkgreen",
             "green",
             "forestgreen",
@@ -44,7 +48,7 @@ class GameWidget(AsyncWidget):
             "palegreen"
         ]
 
-        self.floor_segments = [random.choice(available_colors) for _ in range(100)] 
+        self.floor_segments = [random.choice(self.AVAILABLE_COLORS) for _ in range(100)] 
 
         self.floor_y = self.height() - self.floor_height
 
@@ -141,6 +145,13 @@ class GameWidget(AsyncWidget):
         # Draw player block
         player_x = int(round(self.player_x))
         player_y = int(round(self.player_y))
+
+        if hasattr(self, "border_color"):
+            pen = QPen(self.border_color, self.border_size)
+        else:
+            pen = QPen(self.player_color.darker(), 4)
+
+        painter.setPen(pen)
         painter.setBrush(self.player_color)
         painter.drawEllipse(
             player_x,
@@ -151,6 +162,11 @@ class GameWidget(AsyncWidget):
 
         painter.end()
 
+    def setBorder(self, color, size):
+        self.border_color = QColor(color)
+        self.border_size = size
+        self.update()
+
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_Escape:
             self.close()
@@ -159,6 +175,7 @@ class GameWidget(AsyncWidget):
         if event.key() in self.JUMP_KEYS and self.is_on_ground:
             self.velocity_y = self.jump_velocity
             self.is_on_ground = False
+            self.setBorder("yellow", 6)
 
         self.keys_pressed.add(event.key())
         self.handle_movement()
@@ -167,11 +184,14 @@ class GameWidget(AsyncWidget):
     def keyReleaseEvent(self, event: QKeyEvent):
         if event.key() in self.keys_pressed:
             self.keys_pressed.remove(event.key())
+        if event.key() in self.JUMP_KEYS:
+            self.setBorder("", 0)
 
     def closeEvent(self, event):
         self.timer.stop()
         if callable(self.on_exit):
-            self.on_exit()
+            pixmap = captureWidget(self)
+            self.on_exit(pixmap)
         super().closeEvent(event)
 
     def _tick(self):
@@ -202,19 +222,7 @@ class GameWidget(AsyncWidget):
         self.update()
 
     def generate_segment(self):
-        available_colors = [
-            "darkgreen",
-            "green",
-            "forestgreen",
-            "limegreen",
-            "seagreen",
-            "mediumseagreen",
-            "springgreen",
-            "mediumspringgreen",
-            "lightgreen",
-            "palegreen"
-        ]
-        return random.choice(available_colors)
+        return random.choice(self.AVAILABLE_COLORS)
 
     def handle_movement(self):
         # LEFT movement
