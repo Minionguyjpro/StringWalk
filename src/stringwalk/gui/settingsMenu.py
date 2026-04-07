@@ -14,7 +14,7 @@ def createSettingsMenu(navigate, parent=None) -> QWidget:
 
             outer, inner = makeMenuLayout()
 
-            self.keys = ["language", "resolution", "back"]
+            self.keys = ["language", "resolution", "fps", "back"]
             self.layout_ref = inner
 
             self.setLayout(outer)
@@ -41,6 +41,13 @@ def createSettingsMenu(navigate, parent=None) -> QWidget:
                         f"{getProjectNameLower()}.gui.settings.resolutionSelect",
                         fromlist=["createresolutionSelect"]
                     ).createresolutionSelect,
+                    parent=self.parent_window
+                ),
+                lambda w=None: self.navigate(
+                    __import__(
+                        f"{getProjectNameLower()}.gui.settings.fpsSelect",
+                        fromlist=["createfpsSelect"]
+                    ).createfpsSelect,
                     parent=self.parent_window
                 ),
                 lambda w=None: self.navigate(

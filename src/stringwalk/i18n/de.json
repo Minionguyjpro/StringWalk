@@ -8,6 +8,7 @@
 
     "language": "Sprache",
     "resolution": "Auflösung",
+    "fps": "BpS",
     "back": "Zurück",
 
     "fullscreen": "Vollbild",

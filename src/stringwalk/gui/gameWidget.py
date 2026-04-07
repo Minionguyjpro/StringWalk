@@ -54,6 +54,10 @@ class GameWidget(AsyncWidget):
         self.velocity_y = 0.0
         self.is_on_ground = True
 
+        self.world_offset_x = 0
+
+        self.camera_margin = 150
+
         # Keys that can trigger left movement
         self.LEFT_KEYS = [
             Qt.Key.Key_Left,
@@ -95,8 +99,13 @@ class GameWidget(AsyncWidget):
         # Currently pressed keys
         self.keys_pressed = set()
 
-        self.fps_label = QLabel(None, self)
-        self.fps_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.debug_labels = []
+
+        for i, name in enumerate(["fps", "latency"]):
+            label = QLabel(None, self)
+            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            label.move(10, 10 + i * 20)
+            self.debug_labels.append(label)
 
         asyncio.create_task(self._apply_settings())
 
@@ -115,16 +124,30 @@ class GameWidget(AsyncWidget):
         # Draw floor segments
         floor_y = int(round(self.floor_y))
         for i, color_name in enumerate(self.floor_segments):
-            x_pos = i * self.segment_width
+            x_pos = i * self.segment_width - self.world_offset_x
             if x_pos > self.width():
                 break
+            if x_pos + self.segment_width < 0:
+                continue
                 
-            painter.fillRect(x_pos, floor_y, self.segment_width, self.floor_height, QColor(color_name))
+            painter.fillRect(
+                int(x_pos),
+                floor_y,
+                self.segment_width,
+                self.floor_height,
+                QColor(color_name)
+            )
 
         # Draw player block
         player_x = int(round(self.player_x))
         player_y = int(round(self.player_y))
-        painter.fillRect(player_x, player_y, self.player_width, self.player_height, self.player_color)
+        painter.fillRect(
+            player_x,
+            player_y,
+            self.player_width,
+            self.player_height,
+            self.player_color
+        )
 
         painter.end()
 
@@ -158,17 +181,60 @@ class GameWidget(AsyncWidget):
 
         if delta_time > 0:
             actual_fps = 1 / delta_time
-            self.fps_label.setText(f"FPS: {int(actual_fps)}")
-            self.fps_label.adjustSize()
+            self.debug_labels[0].setText(f"FPS: {int(actual_fps)}")
+            
+            self.debug_labels[1].setText(f"Latency: {int(delta_time * 1000)} ms")
+
+            for label in self.debug_labels:
+                label.adjustSize()
+
+        visible_segments = int(self.width() / self.segment_width) + 2
+
+        current_max_segment = len(self.floor_segments)
+
+        needed_segments = int((self.world_offset_x / self.segment_width) + visible_segments) + 1
+
+        while current_max_segment < needed_segments:
+            self.floor_segments.append(self.generate_segment())
+            current_max_segment += 1
 
         self.handle_movement()
         self.update()
 
+    def generate_segment(self):
+        available_colors = [
+            "darkgreen",
+            "green",
+            "forestgreen",
+            "limegreen",
+            "seagreen",
+            "mediumseagreen",
+            "springgreen",
+            "mediumspringgreen",
+            "lightgreen",
+            "palegreen"
+        ]
+        return random.choice(available_colors)
+
     def handle_movement(self):
+        # LEFT movement
         if any(key in self.keys_pressed for key in self.LEFT_KEYS):
-            self.player_x = max(0, self.player_x - self.speed)
+            if self.player_x > self.camera_margin:
+                # Move player normally
+                self.player_x -= self.speed
+            else:
+                # Move world
+                self.world_offset_x = max(0, self.world_offset_x - self.speed)
+
+        # RIGHT movement
         if any(key in self.keys_pressed for key in self.RIGHT_KEYS):
-            self.player_x = min(self.width() - self.player_width, self.player_x + self.speed)
+            if self.player_x < self.width() - self.camera_margin - self.player_width:
+                # Move player normally
+                self.player_x += self.speed
+            else:
+                # Move world
+                self.world_offset_x += self.speed
+ 
         if any(key in self.keys_pressed for key in self.JUMP_KEYS):
             self.player_y = max(0, self.player_y - self.speed)
         if any(key in self.keys_pressed for key in self.DOWN_KEYS):
@@ -186,7 +252,7 @@ class GameWidget(AsyncWidget):
     
     async def _apply_settings(self):
         try:
-            config_fps_str = await readConfigItem("fps")
+            config_fps_str = await readConfigItem("current_fps")
             print(config_fps_str)
             config_fps = int(config_fps_str)
 
