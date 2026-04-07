@@ -1,9 +1,11 @@
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy
+from PyQt6.QtGui import QPainter, QColor
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ..utility.data.textHandler import getText
 from ..utility.audio.soundHandler import playSound, toggleSound
 from ..utility.audio.audioManager import audio
+from ..utility.graphics.screenHandler import captureWidget, blur_pixmap
 from ..utility.data.projectNameHandler import getProjectNameLower
 from ..utility.ui.buttonHandler import reloadButton
 from ..gui.gameWidget import GameWidget
@@ -40,11 +42,21 @@ def createMainMenu(navigate, parent=None) -> QWidget:
             self.setLayout(outer)
 
         def _reload_texts(self):
+            keys = self.keys.copy()
+
+            if self.pause_background:
+                keys.insert(0, "resume")  # Add "resume" at the beginning if paused
+
             """Fetch texts and rebuild buttons."""
-            self.run_task(getText(self.keys), self.__texts_loaded)
+            self.run_task(getText(keys), self.__texts_loaded)
 
         def __texts_loaded(self, task):
             texts = task.result()
+
+            keys = self.keys.copy()
+
+            if self.pause_background:
+                keys.insert(0, "resume")  # Add "resume" at the beginning if paused
             
             sound_btn = None  # Will store reference to sound button
 
@@ -58,7 +70,12 @@ def createMainMenu(navigate, parent=None) -> QWidget:
                         sound_btn.setProperty("variant", "mute")
                     reloadButton(sound_btn)
 
-            actions = [
+            actions = []
+
+            if self.pause_background:
+                actions.append(lambda w=None: self.resume_game())  # Resume action
+
+            actions += [
                 lambda w=None: self.start_game(),
                 lambda w=None: self.navigate(
                     __import__(
@@ -80,7 +97,7 @@ def createMainMenu(navigate, parent=None) -> QWidget:
                     widget.setParent(None)
 
             # Add buttons
-            for key, text, action in zip(self.keys, texts, actions):
+            for key, text, action in zip(keys, texts, actions):
                 btn = QPushButton(text)
                 btn.clicked.connect(action)
                 addMenuWidget(self.layout_ref, btn)
@@ -115,18 +132,57 @@ def createMainMenu(navigate, parent=None) -> QWidget:
 
             # Launch the game
             parent_container = getattr(self.parent_window, "central_container", self.parent_window)
-            self.parent_window.game_widget = GameWidget(parent=parent_container, on_exit=self.return_to_menu)
+            
+            self.parent_window.game_widget = GameWidget(
+                parent=parent_container,
+                on_exit=self.return_to_menu
+            )
+
             self.parent_window.game_widget.setGeometry(parent_container.rect())
             self.parent_window.game_widget.show()
             self.parent_window.game_widget.raise_()
             self.parent_window.game_widget.setFocus()
+
+            self.pause_background = None  # Clear pause background when starting game
+
+        def resume_game(self):
+            if not self.parent_window:
+                return
+
+            if hasattr(self.parent_window, "menu_container"):
+                self.parent_window.menu_container.hide()
+
+            game = getattr(self.parent_window, "game_widget", None)
+
+            if game:
+                game.show()
+                game.raise_()
+                game.setFocus()
+                game.resume_game()
+
+            self.pause_background = None  # Clear pause background when resuming
 
         def return_to_menu(self, pixmap=None):
             # Show menu container again when exiting game
             if self.parent_window and hasattr(self.parent_window, "menu_container"):
                 self.parent_window.menu_container.show()
 
-            if self.parent_window and hasattr(self.parent_window, "game_widget"):
-                self.parent_window.game_widget = None
+            if pixmap:
+                self.pause_background = blur_pixmap(pixmap)
+            else:
+                self.pause_background = None
+            
+            self.update()
+            self._reload_texts()
+
+        def paintEvent(self, event):
+            painter = QPainter(self)
+
+            if self.pause_background:
+                painter.drawPixmap(self.rect(), self.pause_background)
+            else:
+                painter.fillRect(self.rect(), QColor("#1e1e1e"))
+
+            painter.end()
 
     return MainMenu(navigate, parent=parent)

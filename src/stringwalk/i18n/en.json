@@ -9,8 +9,11 @@
     "language": "Language",
     "resolution": "Resolution",
     "fps": "FPS",
+    "resume": "Resume",
     "back": "Back",
 
     "fullscreen": "Fullscreen",
-    "maximized": "Maximized"
+    "maximized": "Maximized",
+
+    "latency": "Latency"
 }

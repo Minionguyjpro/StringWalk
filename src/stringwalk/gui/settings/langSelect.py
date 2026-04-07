@@ -11,7 +11,7 @@ from ...utility.data.projectNameHandler import getProjectNameLower
 from ...utility.ui.menuRefresh import refresh_all_menus
 
 
-def createlangSelect(navigate, parent=None):
+def createlangSelect(navigate, parent=None) -> QWidget:
     class langSelect(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)

@@ -9,8 +9,11 @@
     "language": "Sprache",
     "resolution": "Auflösung",
     "fps": "BpS",
+    "resume": "Fortsetzen",
     "back": "Zurück",
 
     "fullscreen": "Vollbild",
-    "maximized": "Maximiert"
+    "maximized": "Maximiert",
+
+    "latency": "Latenz"
 }

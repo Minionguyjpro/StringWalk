@@ -9,7 +9,7 @@ from ...utility.ui.resolutionHandler import getResolution, lockWindowSize, cente
 from ...utility.data.projectNameHandler import getProjectNameLower
 
 
-def createresolutionSelect(navigate, parent=None):
+def createresolutionSelect(navigate, parent=None) -> QWidget:
     class resolutionSelect(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)

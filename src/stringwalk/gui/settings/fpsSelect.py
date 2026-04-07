@@ -9,7 +9,7 @@ from ...utility.data.textHandler import getText
 from ...utility.data.projectNameHandler import getProjectNameLower
 
 
-def createfpsSelect(navigate, parent=None):
+def createfpsSelect(navigate, parent=None) -> QWidget:
     class fpsSelect(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)

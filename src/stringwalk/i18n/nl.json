@@ -8,9 +8,12 @@
 
     "language": "Taal",
     "resolution": "Resolutie",
-    "fps": "BpS",
+    "fps": "FPS",
+    "resume": "Doorgaan",
     "back": "Terug",
 
     "fullscreen": "Volledig scherm",
-    "maximized": "Gemaximaliseerd"
+    "maximized": "Gemaximaliseerd",
+
+    "latency": "Latentie"
 }

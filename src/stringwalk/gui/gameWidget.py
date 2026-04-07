@@ -1,6 +1,7 @@
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget
 from ..utility.audio.soundHandler import stopSound
+from ..utility.data.textHandler import getText
 from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen
@@ -19,6 +20,9 @@ class GameWidget(AsyncWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         stopSound()  # Stop any music from the main menu when entering the game
+
+        # Game state
+        self.is_paused = False
 
         # Player block properties
         self.player_x = 50
@@ -53,9 +57,9 @@ class GameWidget(AsyncWidget):
         self.floor_y = self.height() - self.floor_height
 
         # Physics
-        self.gravity = 0.8
+        self.gravity = 1.0
         self.jump_velocity = -14.0
-        self.velocity_y = 0.0
+        self.velocity_y = 1.0
         self.is_on_ground = True
 
         self.world_offset_x = 0
@@ -86,8 +90,10 @@ class GameWidget(AsyncWidget):
             Qt.Key.Key_Down,
             Qt.Key.Key_S
         ]
+        
+        self.BORDER_RELEASE_KEYS = self.JUMP_KEYS + [Qt.Key.Key_Shift]
 
-        self.last_time = time.time()
+        self.last_time = time.perf_counter()
         self.frame_count = 0
         self.fps_accumulated = 0
 
@@ -111,6 +117,10 @@ class GameWidget(AsyncWidget):
             label.move(10, 10 + i * 20)
             self.debug_labels.append(label)
 
+        self.fps_text = "FPS"
+        self.latency_text = "Latency"
+
+        asyncio.create_task(self._load_debug_label_texts())
         asyncio.create_task(self._apply_settings())
 
     def showEvent(self, event):
@@ -169,7 +179,7 @@ class GameWidget(AsyncWidget):
 
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_Escape:
-            self.close()
+            self.pause_game()
             return
         
         if event.key() in self.JUMP_KEYS and self.is_on_ground:
@@ -177,6 +187,10 @@ class GameWidget(AsyncWidget):
             self.is_on_ground = False
             self.setBorder("yellow", 6)
 
+        if event.key() == Qt.Key.Key_Shift:
+            self.speed = 10
+            self.setBorder("gray", 4)
+    
         self.keys_pressed.add(event.key())
         self.handle_movement()
         self.update()
@@ -184,8 +198,12 @@ class GameWidget(AsyncWidget):
     def keyReleaseEvent(self, event: QKeyEvent):
         if event.key() in self.keys_pressed:
             self.keys_pressed.remove(event.key())
-        if event.key() in self.JUMP_KEYS:
+
+        if event.key() in self.BORDER_RELEASE_KEYS:
             self.setBorder("", 0)
+
+        if event.key() == Qt.Key.Key_Shift:
+            self.speed = 5
 
     def closeEvent(self, event):
         self.timer.stop()
@@ -194,16 +212,26 @@ class GameWidget(AsyncWidget):
             self.on_exit(pixmap)
         super().closeEvent(event)
 
+    def pause_game(self):
+        self.is_paused = True
+        self.timer.stop()
+
+        pixmap = captureWidget(self)
+        self.hide()
+
+        if callable(self.on_exit):
+            self.on_exit(pixmap)
+
     def _tick(self):
-        current_time = time.time()
+        current_time = time.perf_counter()
         delta_time = current_time - self.last_time
         self.last_time = current_time
 
         if delta_time > 0:
             actual_fps = 1 / delta_time
-            self.debug_labels[0].setText(f"FPS: {int(actual_fps)}")
-            
-            self.debug_labels[1].setText(f"Latency: {int(delta_time * 1000)} ms")
+
+            self.debug_labels[0].setText(f"{self.fps_text}: {int(actual_fps)}")
+            self.debug_labels[1].setText(f"{self.latency_text}: {int(delta_time * 1000)} ms")
 
             for label in self.debug_labels:
                 label.adjustSize()
@@ -218,45 +246,60 @@ class GameWidget(AsyncWidget):
             self.floor_segments.append(self.generate_segment())
             current_max_segment += 1
 
-        self.handle_movement()
+        self.handle_movement(delta_time)
         self.update()
 
     def generate_segment(self):
         return random.choice(self.AVAILABLE_COLORS)
 
-    def handle_movement(self):
+    def handle_movement(self, delta_time=1 / 60):
+        # Scale per-frame values so gameplay speed stays consistent across FPS values.
+        dt_scale = delta_time * 60
+
         # LEFT movement
         if any(key in self.keys_pressed for key in self.LEFT_KEYS):
             if self.player_x > self.camera_margin:
                 # Move player normally
-                self.player_x -= self.speed
+                self.player_x -= self.speed * dt_scale
             else:
                 # Move world
-                self.world_offset_x = max(0, self.world_offset_x - self.speed)
+                self.world_offset_x = max(0, self.world_offset_x - (self.speed * dt_scale))
 
         # RIGHT movement
         if any(key in self.keys_pressed for key in self.RIGHT_KEYS):
             if self.player_x < self.width() - self.camera_margin - self.player_width:
                 # Move player normally
-                self.player_x += self.speed
+                self.player_x += self.speed * dt_scale
             else:
                 # Move world
-                self.world_offset_x += self.speed
+                self.world_offset_x += self.speed * dt_scale
  
         if any(key in self.keys_pressed for key in self.JUMP_KEYS):
-            self.player_y = max(0, self.player_y - self.speed)
+            self.player_y = max(0, self.player_y - (self.speed * dt_scale))
         if any(key in self.keys_pressed for key in self.DOWN_KEYS):
-            self.player_y = min(self.floor_y - self.player_height, self.player_y + self.speed)
+            self.player_y = min(self.floor_y - self.player_height, self.player_y + (self.speed * dt_scale))
 
         # Vertical physics
-        self.velocity_y += self.gravity
-        self.player_y += self.velocity_y
+        self.velocity_y += self.gravity * dt_scale
+        self.player_y += self.velocity_y * dt_scale
 
         ground_top = self.floor_y - self.player_height
         if self.player_y >= ground_top:
             self.player_y = ground_top
             self.velocity_y = 0
             self.is_on_ground = True
+
+    def resume_game(self):
+        self.is_paused = False
+        self.last_time = time.perf_counter()
+        self.timer.start(self.update_interval)
+
+    async def _load_debug_label_texts(self):
+        try:
+            self.fps_text = await getText("fps")
+            self.latency_text = await getText("latency")
+        except Exception as e:
+            print(f"Error loading debug label texts: {e}")
     
     async def _apply_settings(self):
         try:
