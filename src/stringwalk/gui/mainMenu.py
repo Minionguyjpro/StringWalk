@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy
-from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtGui import QPainter, QKeyEvent, QColor
+from PyQt6.QtCore import Qt, QTimer
 from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ..utility.data.textHandler import getText
@@ -15,6 +16,9 @@ def createMainMenu(navigate, parent=None) -> QWidget:
     class MainMenu(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)
+
+            global lobbyMusic
+
             self.navigate = navigate
             self.parent_window = parent
 
@@ -24,6 +28,7 @@ def createMainMenu(navigate, parent=None) -> QWidget:
             print("    isinstance parent MainWindow?", isinstance(parent, QWidget))
 
             self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
             # Main layout
             outer, inner = makeMenuLayout()
@@ -32,7 +37,6 @@ def createMainMenu(navigate, parent=None) -> QWidget:
 
             self.pause_background = None
 
-            global lobbyMusic
             lobbyMusic = "music", "lobby.mp3"
 
             playSound(lobbyMusic[0], lobbyMusic[1])
@@ -44,7 +48,7 @@ def createMainMenu(navigate, parent=None) -> QWidget:
         def _reload_texts(self):
             keys = self.keys.copy()
 
-            if self.pause_background:
+            if getattr(self.parent_window, "pause_background", None):
                 keys.insert(0, "resume")  # Add "resume" at the beginning if paused
 
             """Fetch texts and rebuild buttons."""
@@ -55,7 +59,7 @@ def createMainMenu(navigate, parent=None) -> QWidget:
 
             keys = self.keys.copy()
 
-            if self.pause_background:
+            if getattr(self.parent_window, "pause_background", None):
                 keys.insert(0, "resume")  # Add "resume" at the beginning if paused
             
             sound_btn = None  # Will store reference to sound button
@@ -72,7 +76,7 @@ def createMainMenu(navigate, parent=None) -> QWidget:
 
             actions = []
 
-            if self.pause_background:
+            if getattr(self.parent_window, "pause_background", None):
                 actions.append(lambda w=None: self.resume_game())  # Resume action
 
             actions += [
@@ -143,43 +147,66 @@ def createMainMenu(navigate, parent=None) -> QWidget:
             self.parent_window.game_widget.raise_()
             self.parent_window.game_widget.setFocus()
 
-            self.pause_background = None  # Clear pause background when starting game
+            self.parent_window.pause_background = None  # Clear pause background when starting game
 
         def resume_game(self):
-            if not self.parent_window:
-                return
-
-            if hasattr(self.parent_window, "menu_container"):
-                self.parent_window.menu_container.hide()
-
             game = getattr(self.parent_window, "game_widget", None)
 
-            if game:
-                game.show()
-                game.raise_()
-                game.setFocus()
-                game.resume_game()
+            if not game:
+                return
 
-            self.pause_background = None  # Clear pause background when resuming
+            self.parent_window.menu_container.hide()  # Hide menu when resuming
+
+            game.show()
+            game.raise_()
+
+            game.resume_game()
+
+            QTimer.singleShot(0, game.setFocus)
+
+            self.parent_window.pause_background = None  # Clear pause background when resuming
 
         def return_to_menu(self, pixmap=None):
             # Show menu container again when exiting game
-            if self.parent_window and hasattr(self.parent_window, "menu_container"):
+            if self.parent_window:
                 self.parent_window.menu_container.show()
 
             if pixmap:
-                self.pause_background = blur_pixmap(pixmap)
+                self.parent_window.pause_background = blur_pixmap(pixmap)
             else:
-                self.pause_background = None
+                self.parent_window.pause_background = None
             
             self.update()
             self._reload_texts()
 
+            QTimer.singleShot(0, self._force_focus)
+
+        def _force_focus(self):
+            self.raise_()
+            self.activateWindow()
+            self.setFocus()
+
+        def keyPressEvent(self, event):
+            if event.key() == Qt.Key.Key_Escape:
+                self.resume_game()
+                event.accept()
+                return
+
+            super().keyPressEvent(event)
+        def showEvent(self, event):
+            super().showEvent(event)
+            self.setFocus()
+
         def paintEvent(self, event):
+            if not self.parent_window.pause_background:
+                return
+
             painter = QPainter(self)
 
-            if self.pause_background:
-                painter.drawPixmap(self.rect(), self.pause_background)
+            bg = getattr(self.parent_window, "pause_background", None)
+
+            if bg:
+                painter.drawPixmap(self.rect(), bg)
             else:
                 painter.fillRect(self.rect(), QColor("#1e1e1e"))
 

@@ -64,6 +64,9 @@ def gameExec():
             # Store already-created menus to avoid flicker
             self.menu_widgets = {}
 
+            self.pause_background = None
+            self.game_paused = False
+
         def navigate(self, factory, *, key=None, parent=None):
             if key is None:
                 key = getattr(factory, "__name__", None) or f"menu_{id(factory)}"
@@ -110,6 +113,15 @@ def gameExec():
             self.video_manager.setGeometry(self.central_container.rect())
             self.menu_container.setGeometry(self.central_container.rect())
 
+        def return_to_menu(self, pixmap=None):
+            self.menu_container.show()
+
+            if pixmap:
+                self.pause_background = pixmap
+            else:
+                self.pause_background = None
+
+            self.menu_container.raise_()
     async def setup() -> MainWindow:
         res = await getResolution()
     

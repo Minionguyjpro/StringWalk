@@ -126,6 +126,11 @@ class GameWidget(AsyncWidget):
     def showEvent(self, event):
         super().showEvent(event)
         # Ensure the widget receives keyboard events immediately.
+        QTimer.singleShot(0, self._force_focus)
+        
+    def _force_focus(self):
+        self.raise_()
+        self.activateWindow()
         self.setFocus()
 
     def paintEvent(self, event):
@@ -179,7 +184,10 @@ class GameWidget(AsyncWidget):
 
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_Escape:
-            self.pause_game()
+            if self.is_paused:
+                self.resume_game()
+            else:
+                self.pause_game()
             return
         
         if event.key() in self.JUMP_KEYS and self.is_on_ground:
@@ -213,14 +221,19 @@ class GameWidget(AsyncWidget):
         super().closeEvent(event)
 
     def pause_game(self):
+        if self.is_paused:
+            return
+
         self.is_paused = True
         self.timer.stop()
 
         pixmap = captureWidget(self)
+
+        self.last_time = time.perf_counter()  # Reset time to avoid large delta when resuming
+
         self.hide()
 
-        if callable(self.on_exit):
-            self.on_exit(pixmap)
+        self.on_exit(pixmap)
 
     def _tick(self):
         current_time = time.perf_counter()
@@ -290,9 +303,21 @@ class GameWidget(AsyncWidget):
             self.is_on_ground = True
 
     def resume_game(self):
+        if not self.is_paused:
+            return
+
         self.is_paused = False
+
+        stopSound()  # Stop any music that might be playing in the menu
+
         self.last_time = time.perf_counter()
-        self.timer.start(self.update_interval)
+        
+        if not self.timer.isActive():
+            self.timer.start(self.update_interval)
+
+        self.setFocus()
+
+        asyncio.create_task(self._apply_settings())  # Re-apply settings in case they were changed in the menu
 
     async def _load_debug_label_texts(self):
         try:
