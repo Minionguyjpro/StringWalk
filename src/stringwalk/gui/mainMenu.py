@@ -89,7 +89,7 @@ def createMainMenu(navigate, parent=None, background=None) -> QWidget:
                     ).createSettingsMenu,
                     key="SettingsMenu",
                     parent=self.parent_window,
-                    background=self.background
+                    background=getattr(self.parent_window, "pause_background", None) or self.background
                 ),
                 lambda w=None: QApplication.quit(),
                 toggle_mute

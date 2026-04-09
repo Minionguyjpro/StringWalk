@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QPushButton, QWidget
 from ..utility.ui.asyncWidget import AsyncWidget
+from .backgroundWidget import BackgroundWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ..utility.data.textHandler import getText
 from ..utility.data.projectNameHandler import getProjectNameLower
@@ -7,8 +8,8 @@ from ..utility.io.keyManager import load_bindings
 
 
 def createSettingsMenu(navigate, parent=None, background=None) -> QWidget:
-    class SettingsMenu(AsyncWidget):
-        def __init__(self, navigate, parent=None):
+    class SettingsMenu(BackgroundWidget):
+        def __init__(self, navigate, parent=None, background=None):
             super().__init__(parent)
             self.navigate = navigate
             self.parent_window = parent
@@ -62,12 +63,12 @@ def createSettingsMenu(navigate, parent=None, background=None) -> QWidget:
                     background=self.background
                 ),
                 lambda w=None: self.navigate(
-                    lambda nav, parent=None: __import__(
+                    lambda nav, parent=None, background=None: __import__(
                         f"{getProjectNameLower()}.gui.hotkeyMenu",
                         fromlist=["createHotkeyMenu"]
                     ).createHotkeyMenu(nav, parent, self.hotkeys, background),
                     parent=self.parent_window,
-                    background=background
+                    background=self.background
                 ),
                 lambda w=None: self.navigate(
                     __import__(
@@ -75,7 +76,7 @@ def createSettingsMenu(navigate, parent=None, background=None) -> QWidget:
                         fromlist=["createMainMenu"]
                     ).createMainMenu,
                     parent=self.parent_window,
-                    background=background
+                    background=self.background
                 )
             ]
 

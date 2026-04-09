@@ -1,10 +1,11 @@
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import Qt
 from ..utility.ui.asyncWidget import AsyncWidget
+from .backgroundWidget import BackgroundWidget
 from ..utility.ui.menuHandler import makeMenuLayout
 from ..utility.data.textHandler import getText
 from ..utility.data.projectNameHandler import getProjectNameLower
-from .backgroundWidget import BackgroundWidget
 from ..utility.io.keyManager import save_bindings
 import asyncio
 
@@ -33,11 +34,12 @@ def createHotkeyMenu(nav, parent=None, bindings=None, background=None) -> QWidge
         }
 
     class HotkeyMenu(BackgroundWidget):
-        def __init__(self, navigate, parent=None, bindings=None):
+        def __init__(self, navigate, parent=None, bindings=None, background=None):
             super().__init__(parent)
             
             self.navigate = navigate
             self.parent_window = parent
+            self.background = background
             self.bindings = dict(bindings or {})
             self.action_labels = {
                 "jump": "Jump",
@@ -98,7 +100,8 @@ def createHotkeyMenu(nav, parent=None, bindings=None, background=None) -> QWidge
                     f"{getProjectNameLower()}.gui.settingsMenu",
                     fromlist=["createSettingsMenu"]
                 ).createSettingsMenu,
-                parent=self.parent_window
+                parent=self.parent_window,
+                background=self.background
             )
 
     class HotkeyButton(QPushButton):
@@ -140,4 +143,4 @@ def createHotkeyMenu(nav, parent=None, bindings=None, background=None) -> QWidge
 
             if self.on_change:
                 self.on_change(self.action_name, key_name)
-    return HotkeyMenu(nav, parent=parent, bindings=bindings)
+    return HotkeyMenu(nav, parent=parent, bindings=bindings, background=background)

@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QComboBox, QPushButton
 from PyQt6.QtCore import Qt, QTimer
 import asyncio
 from ...utility.ui.asyncWidget import AsyncWidget
+from ..backgroundWidget import BackgroundWidget
 from ...utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ...utility.configHandler import readConfigItem, writeConfigItem
 from ...utility.data.textHandler import getText
@@ -9,9 +10,9 @@ from ...utility.ui.resolutionHandler import getResolution, lockWindowSize, cente
 from ...utility.data.projectNameHandler import getProjectNameLower
 
 
-def createresolutionSelect(navigate, parent=None, background=None) -> AsyncWidget:
-    class resolutionSelect(AsyncWidget):
-        def __init__(self, navigate, parent=None):
+def createresolutionSelect(navigate, parent=None, background=None) -> BackgroundWidget:
+    class resolutionSelect(BackgroundWidget):
+        def __init__(self, navigate, parent=None, background=None):
             super().__init__(parent)
             self.navigate = navigate
             self.parent_window = parent
@@ -124,7 +125,8 @@ def createresolutionSelect(navigate, parent=None, background=None) -> AsyncWidge
                         f"{getProjectNameLower()}.gui.settingsMenu",
                         fromlist=["createSettingsMenu"]
                     ).createSettingsMenu,
-                    parent=self.parent_window
+                    parent=self.parent_window,
+                    background=self.background
                 )
             )
             addMenuWidget(self.layout_ref, back_btn)

@@ -81,6 +81,8 @@ def gameExec():
                 widget = self.menu_widgets[key]
                 if hasattr(widget, "parent_window") and parent is not None:
                     widget.parent_window = parent
+                if hasattr(widget, "background") and background is not None:
+                    widget.background = background
 
             self.menu_layout.setCurrentWidget(self.menu_widgets[key])
 

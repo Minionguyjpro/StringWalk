@@ -3,6 +3,7 @@ import asyncio
 import glob
 from pathlib import Path
 from ...utility.ui.asyncWidget import AsyncWidget
+from ..backgroundWidget import BackgroundWidget
 from ...utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ...utility.jsonParser import parseJson
 from ...utility.data.languageHandler import setLanguage
@@ -12,8 +13,8 @@ from ...utility.ui.menuRefresh import refresh_all_menus
 
 
 def createlangSelect(navigate, parent=None, background=None) -> QWidget:
-    class langSelect(AsyncWidget):
-        def __init__(self, navigate, parent=None):
+    class langSelect(BackgroundWidget):
+        def __init__(self, navigate, parent=None, background=None):
             super().__init__(parent)
             self.navigate = navigate
             self.parent_window = parent
@@ -73,7 +74,8 @@ def createlangSelect(navigate, parent=None, background=None) -> QWidget:
                         f"{getProjectNameLower()}.gui.settingsMenu",
                         fromlist=["createSettingsMenu"]
                     ).createSettingsMenu,
-                    parent=self.parent_window
+                    parent=self.parent_window,
+                    background=self.background
                 )
             )
             addMenuWidget(self.layout_ref, back_btn)

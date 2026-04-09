@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QComboBox, QPushButton
 from PyQt6.QtCore import Qt, QTimer
 import asyncio
 from ...utility.ui.asyncWidget import AsyncWidget
+from ..backgroundWidget import BackgroundWidget
 from ...utility.ui.menuHandler import makeMenuLayout, addMenuWidget, finalizeMenuLayout
 from ...utility.configHandler import readConfigItem, writeConfigItem
 from ...utility.data.textHandler import getText
@@ -10,8 +11,8 @@ from ...utility.data.projectNameHandler import getProjectNameLower
 
 
 def createfpsSelect(navigate, parent=None, background=None) -> QWidget:
-    class fpsSelect(AsyncWidget):
-        def __init__(self, navigate, parent=None):
+    class fpsSelect(BackgroundWidget):
+        def __init__(self, navigate, parent=None, background=None):
             super().__init__(parent)
             self.navigate = navigate
             self.parent_window = parent
@@ -119,7 +120,8 @@ def createfpsSelect(navigate, parent=None, background=None) -> QWidget:
                         f"{getProjectNameLower()}.gui.settingsMenu",
                         fromlist=["createSettingsMenu"]
                     ).createSettingsMenu,
-                    parent=self.parent_window
+                    parent=self.parent_window,
+                    background=self.background
                 )
             )
             addMenuWidget(self.layout_ref, back_btn)
