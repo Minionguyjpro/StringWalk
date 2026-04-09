@@ -24,7 +24,19 @@ async def getText(keys) -> str | list[str]:
     else:
         json_path = root / "i18n" / f"{lang}.json"
 
-    results = [parseJson(json_path, key) for key in keys]
+    fallback_path = root / "i18n" / "en.json"
+
+    results = []
+    for key in keys:
+        value = parseJson(json_path, key)
+
+        if value is None and json_path != fallback_path and fallback_path.exists():
+            value = parseJson(fallback_path, key)
+
+        if value is None:
+            value = key.replace("_", " ").title()
+
+        results.append(value)
 
     if single:
         return results[0]

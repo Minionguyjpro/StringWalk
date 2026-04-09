@@ -67,13 +67,13 @@ def gameExec():
             self.pause_background = None
             self.game_paused = False
 
-        def navigate(self, factory, *, key=None, parent=None):
+        def navigate(self, factory, *, key=None, parent=None, background=None):
             if key is None:
                 key = getattr(factory, "__name__", None) or f"menu_{id(factory)}"
             
             if key not in self.menu_widgets:
                 # Create new menu if not cached
-                widget = factory(self.navigate, parent=parent)
+                widget = factory(self.navigate, parent=parent, background=background)
                 self.menu_layout.addWidget(widget)
                 self.menu_widgets[key] = widget
             else:
@@ -140,7 +140,7 @@ def gameExec():
             main_window.show()    
             QTimer.singleShot(0, lambda: centerWindow(main_window))
 
-        main_window.navigate(createMainMenu, key="MainMenu", parent=main_window)
+        main_window.navigate(createMainMenu, key="MainMenu", parent=main_window, background=main_window.video_manager)
 
         return main_window
     

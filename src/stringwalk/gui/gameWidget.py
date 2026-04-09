@@ -4,6 +4,7 @@ from ..utility.audio.soundHandler import stopSound
 from ..utility.data.textHandler import getText
 from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
+from ..utility.io.keyManager import load_bindings
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QLabel
@@ -66,32 +67,17 @@ class GameWidget(AsyncWidget):
 
         self.camera_margin = 80
 
-        # Keys that can trigger left movement
-        self.LEFT_KEYS = [
-            Qt.Key.Key_Left,
-            Qt.Key.Key_A
-        ]
-
-        # Keys that can trigger right movement
-        self.RIGHT_KEYS = [
-            Qt.Key.Key_Right,
-            Qt.Key.Key_D
-        ]
-
-        # Keys that can trigger a jump
-        self.JUMP_KEYS = [
-            Qt.Key.Key_Up,
-            Qt.Key.Key_W,
-            Qt.Key.Key_Space
-        ]
-
-        # Keys that can trigger downward movement
-        self.DOWN_KEYS = [
-            Qt.Key.Key_Down,
-            Qt.Key.Key_S
-        ]
-        
-        self.BORDER_RELEASE_KEYS = self.JUMP_KEYS + [Qt.Key.Key_Shift]
+        self.LEFT_KEYS = [Qt.Key.Key_A, Qt.Key.Key_Left]
+        self.RIGHT_KEYS = [Qt.Key.Key_D, Qt.Key.Key_Right]
+        self.JUMP_KEYS = [Qt.Key.Key_Space]
+        self.DOWN_KEYS = [Qt.Key.Key_S]
+        self.BORDER_RELEASE_KEYS = [Qt.Key.Key_Space, Qt.Key.Key_Shift]
+        self.bindings = {
+            "jump": "Space",
+            "move_left": "A",
+            "move_right": "D",
+            "pause": "Escape",
+        }
 
         self.last_time = time.perf_counter()
         self.frame_count = 0
@@ -120,8 +106,86 @@ class GameWidget(AsyncWidget):
         self.fps_text = "FPS"
         self.latency_text = "Latency"
 
+        asyncio.create_task(self._load_bindings()   )
         asyncio.create_task(self._load_debug_label_texts())
         asyncio.create_task(self._apply_settings())
+
+    def get_qt_key(self, key_name: str, fallback):
+        if not key_name:
+            return fallback
+
+        normalized = str(key_name).strip()
+
+        if normalized.isdigit():
+            try:
+                return Qt.Key(int(normalized))
+            except ValueError:
+                return fallback
+
+        special_keys = {
+            "SPACE": "Key_Space",
+            "ESCAPE": "Key_Escape",
+            "SHIFT": "Key_Shift",
+            "CTRL": "Key_Control",
+            "CONTROL": "Key_Control",
+            "ALT": "Key_Alt",
+            "TAB": "Key_Tab",
+            "ENTER": "Key_Return",
+            "RETURN": "Key_Return",
+            "BACKSPACE": "Key_Backspace",
+            "LEFT": "Key_Left",
+            "RIGHT": "Key_Right",
+            "UP": "Key_Up",
+            "DOWN": "Key_Down",
+            "DELETE": "Key_Delete",
+            "INSERT": "Key_Insert",
+            "HOME": "Key_Home",
+            "END": "Key_End",
+            "PAGEUP": "Key_PageUp",
+            "PAGEDOWN": "Key_PageDown",
+        }
+
+        special_attr = special_keys.get(normalized.upper())
+        if special_attr and hasattr(Qt.Key, special_attr):
+            return getattr(Qt.Key, special_attr)
+
+        candidates = [
+            f"Key_{normalized}",
+            f"Key_{normalized.title()}",
+            f"Key_{normalized.upper()}",
+        ]
+
+        for qt_attr in candidates:
+            if hasattr(Qt.Key, qt_attr):
+                return getattr(Qt.Key, qt_attr)
+
+        return fallback
+
+    def apply_bindings(self):
+        # Keys that can trigger left movement
+        self.LEFT_KEYS = [
+            self.get_qt_key(self.bindings.get("move_left"), "A"),
+            Qt.Key.Key_Left
+        ]
+
+        # Keys that can trigger right movement
+        self.RIGHT_KEYS = [
+            self.get_qt_key(self.bindings.get("move_right"), "D"),
+            Qt.Key.Key_Right
+        ]
+
+        # Keys that can trigger a jump
+        self.JUMP_KEYS = [
+            self.get_qt_key(self.bindings.get("jump"), "Space")
+        ]
+
+        # Keys that can trigger downward movement
+        self.DOWN_KEYS = [
+            self.get_qt_key(self.bindings.get("down"), "S"),
+            Qt.Key.Key_S
+        ]
+        
+        self.BORDER_RELEASE_KEYS = self.JUMP_KEYS + [Qt.Key.Key_Shift]
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -183,6 +247,7 @@ class GameWidget(AsyncWidget):
         self.update()
 
     def keyPressEvent(self, event: QKeyEvent):
+        # Toggle pause on Escape key
         if event.key() == Qt.Key.Key_Escape:
             if self.is_paused:
                 self.resume_game()
@@ -190,15 +255,22 @@ class GameWidget(AsyncWidget):
                 self.pause_game()
             return
         
+        # Jumping and shift border effect
         if event.key() in self.JUMP_KEYS and self.is_on_ground:
             self.velocity_y = self.jump_velocity
             self.is_on_ground = False
             self.setBorder("yellow", 6)
 
+        # Shift key for speed boost and border effect
         if event.key() == Qt.Key.Key_Shift:
             self.speed = 10
             self.setBorder("gray", 4)
     
+        if event.key() == Qt.Key.Key_R:
+            self.player_x = 50
+            self.player_y = 300
+            self.world_offset_x = 0
+
         self.keys_pressed.add(event.key())
         self.handle_movement()
         self.update()
@@ -317,7 +389,12 @@ class GameWidget(AsyncWidget):
 
         self.setFocus()
 
+        asyncio.create_task(self._load_bindings())  # Reload bindings in case they were changed in the menu
         asyncio.create_task(self._apply_settings())  # Re-apply settings in case they were changed in the menu
+
+    async def _load_bindings(self):
+        self.bindings = await load_bindings()
+        self.apply_bindings()
 
     async def _load_debug_label_texts(self):
         try:

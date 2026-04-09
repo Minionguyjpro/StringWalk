@@ -12,7 +12,7 @@ from ..utility.ui.buttonHandler import reloadButton
 from ..gui.gameWidget import GameWidget
 
 
-def createMainMenu(navigate, parent=None) -> QWidget:
+def createMainMenu(navigate, parent=None, background=None) -> QWidget:
     class MainMenu(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)
@@ -21,6 +21,7 @@ def createMainMenu(navigate, parent=None) -> QWidget:
 
             self.navigate = navigate
             self.parent_window = parent
+            self.background = background
 
             print(">>> MainMenu.__init__ called")
             print("    parent:", parent)
@@ -87,7 +88,8 @@ def createMainMenu(navigate, parent=None) -> QWidget:
                         fromlist=["createSettingsMenu"]
                     ).createSettingsMenu,
                     key="SettingsMenu",
-                    parent=self.parent_window
+                    parent=self.parent_window,
+                    background=self.background
                 ),
                 lambda w=None: QApplication.quit(),
                 toggle_mute

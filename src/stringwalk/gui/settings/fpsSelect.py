@@ -9,12 +9,13 @@ from ...utility.data.textHandler import getText
 from ...utility.data.projectNameHandler import getProjectNameLower
 
 
-def createfpsSelect(navigate, parent=None) -> QWidget:
+def createfpsSelect(navigate, parent=None, background=None) -> QWidget:
     class fpsSelect(AsyncWidget):
         def __init__(self, navigate, parent=None):
             super().__init__(parent)
             self.navigate = navigate
             self.parent_window = parent
+            self.background = background
             self.valid_fps = True
 
             # Layout

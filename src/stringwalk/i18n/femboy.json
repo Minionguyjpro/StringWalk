@@ -9,6 +9,12 @@
     "language": "Wanguage",
     "resolution": "Wesowution",
     "back": "Back",
+        "fps": "FPS",
+        "hotkeys": "Hotkeys",
+        "jump": "Jump",
+        "move_left": "Move Left",
+        "move_right": "Move Right",
+        "pause": "Pause",
 
     "fullscreen": "Fuwwscween",
     "maximized": "Maximized"

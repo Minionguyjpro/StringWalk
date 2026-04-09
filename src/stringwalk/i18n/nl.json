@@ -9,6 +9,11 @@
     "language": "Taal",
     "resolution": "Resolutie",
     "fps": "FPS",
+    "hotkeys": "Sneltoetsen",
+    "jump": "Springen",
+    "move_left": "Naar links",
+    "move_right": "Naar rechts",
+    "pause": "Pauze",
     "resume": "Doorgaan",
     "back": "Terug",
 

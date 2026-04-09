@@ -25,6 +25,6 @@ def parseJson(file: str, *keys):
         print(f"Invalid JSON in: {file}")
         return None
 
-def writeJson(file: str, **data: dict):
+def writeJson(file: str, **data):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)

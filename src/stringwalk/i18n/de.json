@@ -9,6 +9,11 @@
     "language": "Sprache",
     "resolution": "Auflösung",
     "fps": "BpS",
+    "hotkeys": "Tastenkürzel",
+    "jump": "Springen",
+    "move_left": "Nach links",
+    "move_right": "Nach rechts",
+    "pause": "Pause",
     "resume": "Fortsetzen",
     "back": "Zurück",
 

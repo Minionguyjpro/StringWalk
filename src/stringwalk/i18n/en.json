@@ -9,6 +9,11 @@
     "language": "Language",
     "resolution": "Resolution",
     "fps": "FPS",
+    "hotkeys": "Hotkeys",
+    "jump": "Jump",
+    "move_left": "Move Left",
+    "move_right": "Move Right",
+    "pause": "Pause",
     "resume": "Resume",
     "back": "Back",
 
