@@ -10,11 +10,17 @@ class AudioManager:
     def __init__(self):
         self.music_player = QMediaPlayer()
         self.music_output = QAudioOutput()
-        self.music_player.setAudioOutput(self.music_output)
+        
+        if self.music_output is not None:
+            self.music_player.setAudioOutput(self.music_output)
+        
         self.music_muted = False
 
         self.sfx_player = QMediaPlayer()
         self.sfx_output = QAudioOutput()
+
+        if self.sfx_output is not None:
+
         self.sfx_player.setAudioOutput(self.sfx_output)
         self.sfx_map = self._load_sfx_map()
 
