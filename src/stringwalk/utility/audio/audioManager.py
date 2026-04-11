@@ -20,8 +20,8 @@ class AudioManager:
         self.sfx_output = QAudioOutput()
 
         if self.sfx_output is not None:
-
-        self.sfx_player.setAudioOutput(self.sfx_output)
+            self.sfx_player.setAudioOutput(self.sfx_output)
+        
         self.sfx_map = self._load_sfx_map()
 
         self.current_music = None
