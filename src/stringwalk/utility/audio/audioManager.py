@@ -1,6 +1,6 @@
 import os
 import sys
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput, QMediaDevices
 from PyQt6.QtCore import QUrl
 from importlib import resources
 from ..data.projectNameHandler import getProjectNameLower
@@ -9,18 +9,23 @@ from ..jsonParser import parseJson
 class AudioManager:
     def __init__(self):
         self.music_player = QMediaPlayer()
+
+        self.available_outputs = QMediaDevices.audioOutputs()
+        if not self.available_outputs:
+            return None
+
+        self.default_output = QMediaDevices.defaultAudioOutput()
+        if self.default_output.isNull():
+            return None
+
         self.music_output = QAudioOutput()
-        
-        if self.music_output is not None:
-            self.music_player.setAudioOutput(self.music_output)
+        self.music_player.setAudioOutput(self.music_output)
         
         self.music_muted = False
 
         self.sfx_player = QMediaPlayer()
         self.sfx_output = QAudioOutput()
-
-        if self.sfx_output is not None:
-            self.sfx_player.setAudioOutput(self.sfx_output)
+        self.sfx_player.setAudioOutput(self.sfx_output)
         
         self.sfx_map = self._load_sfx_map()
 
