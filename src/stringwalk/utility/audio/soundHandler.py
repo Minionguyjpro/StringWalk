@@ -15,22 +15,31 @@ def playSound(category: str, filename: str):
         audio.play_sfx(filename)
 
 def stopSound():
-    audio.stop_music()
+    try:
+        audio.stop_music()
+    except Exception:
+        return
 
 def toggleSound(category: str, filename: str):
-    state = audio.music_player.playbackState()
-    if state == QMediaPlayer.PlaybackState.PlayingState:
-        audio.music_muted = True
-        audio.stop_music()
-    else:
-        audio.music_muted = False
-        # Resume last selected track, or use the provided fallback filename.
-        track = audio.current_music or filename
-        if track:
-            if category == "music":
-                audio.play_music(track)
-            elif category == "sfx":
-                audio.play_sfx(track)
+    try:
+        state = audio.music_player.playbackState()
+        if state == QMediaPlayer.PlaybackState.PlayingState:
+            audio.music_muted = True
+            audio.stop_music()
+        else:
+            audio.music_muted = False
+            # Resume last selected track, or use the provided fallback filename.
+            track = audio.current_music or filename
+            if track:
+                if category == "music":
+                    audio.play_music(track)
+                elif category == "sfx":
+                    audio.play_sfx(track)
+    except Exception as err:
+        print(f"Toggle sound error: {err}")
 
 def isSoundPlaying() -> bool:
-    return audio.music_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+    try:
+        return audio.music_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+    except Exception:
+        return False

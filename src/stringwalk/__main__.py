@@ -2,12 +2,13 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QSizePolicy, QWidget, QVB
 from PyQt6.QtCore import Qt, QTimer
 from .utility.qtMessageHandler import installQtMessageHandler
 from .utility.filter.SFXFilter import SFXFilter
-from .utility.video.videoManager import VideoManager
 from .utility.ui.qssProcessor import applyGlobalStyles
 from .utility.data.projectNameHandler import getProjectName
 from .utility.ui.resolutionHandler import getResolution, centerWindow, lockWindowSize
+from .utility.video.videoManager import VideoManager
 from .gui.mainMenu import createMainMenu
 import asyncio
+import os
 import sys
 import qasync
 import nest_asyncio
@@ -44,11 +45,22 @@ def gameExec():
             self.central_container = QWidget(self)
             self.setCentralWidget(self.central_container)
 
-            # Video background (fills whole container)
-            self.video_manager = VideoManager(self.central_container)
-            self.video_manager.setGeometry(self.central_container.rect())
-            self.video_manager.show()
-            self.video_manager.play_video("lobby.mp4")
+            self.video_manager = None
+            self.background_source = QWidget(self.central_container)
+            self.background_source.setGeometry(self.central_container.rect())
+            self.background_source.setStyleSheet(
+                "background-color: #11151c;"
+            )
+            self.background_source.show()
+
+            try:
+                self.video_manager = VideoManager(self.central_container)
+                self.video_manager.setGeometry(self.central_container.rect())
+                self.video_manager.show()
+                self.video_manager.play_video("lobby.mp4")
+                self.background_source = self.video_manager
+            except Exception as err:
+                print(f"Video background unavailable: {err}")
 
             # Menu container on top (transparent)
             self.menu_container = QWidget(self.central_container)
@@ -112,7 +124,10 @@ def gameExec():
 
         def resizeEvent(self, event):
             super().resizeEvent(event)
-            self.video_manager.setGeometry(self.central_container.rect())
+            if self.video_manager is not None:
+                self.video_manager.setGeometry(self.central_container.rect())
+            elif hasattr(self, "background_source"):
+                self.background_source.setGeometry(self.central_container.rect())
             self.menu_container.setGeometry(self.central_container.rect())
 
         def return_to_menu(self, pixmap=None):
@@ -142,8 +157,7 @@ def gameExec():
             main_window.show()    
             QTimer.singleShot(0, lambda: centerWindow(main_window))
 
-        main_window.navigate(createMainMenu, key="MainMenu", parent=main_window, background=main_window.video_manager)
-
+        main_window.navigate(createMainMenu, key="MainMenu", parent=main_window, background=main_window.background_source)
         return main_window
     
     main_window = loop.run_until_complete(setup())

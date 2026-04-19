@@ -5,6 +5,7 @@ from ..utility.data.textHandler import getText
 from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
 from ..utility.io.keyManager import load_bindings
+from ..utility.ui.resolutionHandler import getResolution, lockWindowSize
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QLabel
@@ -37,7 +38,6 @@ class GameWidget(AsyncWidget):
         self.border_size = 0
 
         # Floor
-        self.floor_height = 80
         self.segment_width = 50
 
         self.AVAILABLE_COLORS = [
@@ -54,8 +54,6 @@ class GameWidget(AsyncWidget):
         ]
 
         self.floor_segments = [random.choice(self.AVAILABLE_COLORS) for _ in range(100)] 
-
-        self.floor_y = self.height() - self.floor_height
 
         # Physics
         self.gravity = 1.0
@@ -189,9 +187,17 @@ class GameWidget(AsyncWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+
+        self._update_world_size()
+
         # Ensure the widget receives keyboard events immediately.
         QTimer.singleShot(0, self._force_focus)
-        
+
+    def get_floor(self):
+        floor_height = int(self.height() * 0.5)
+        floor_y = self.height() - floor_height
+        return floor_y, floor_height
+
     def _force_focus(self):
         self.raise_()
         self.activateWindow()
@@ -205,7 +211,7 @@ class GameWidget(AsyncWidget):
         painter.fillRect(event.rect(), QColor("#1e1e1e"))
         
         # Draw floor segments
-        floor_y = int(round(self.floor_y))
+        floor_y, floor_height = self.get_floor()
         for i, color_name in enumerate(self.floor_segments):
             x_pos = i * self.segment_width - self.world_offset_x
             if x_pos > self.width():
@@ -217,7 +223,7 @@ class GameWidget(AsyncWidget):
                 int(x_pos),
                 floor_y,
                 self.segment_width,
-                self.floor_height,
+                floor_height,
                 QColor(color_name)
             )
 
@@ -292,6 +298,12 @@ class GameWidget(AsyncWidget):
             self.on_exit(pixmap)
         super().closeEvent(event)
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        self.update_layout()
+        self.update()
+
     def pause_game(self):
         if self.is_paused:
             return
@@ -306,6 +318,23 @@ class GameWidget(AsyncWidget):
         self.hide()
 
         self.on_exit(pixmap)
+
+    def update_layout(self):
+        self.floor_y, self.floor_height = self.get_floor()
+
+        self.player_y = min(
+            self.player_y,
+            self.floor_y - self.player_height
+        )
+
+        max_x = self.width() - self.player_width
+        self.player_x = min(max(0, self.player_x), max_x)
+
+        max_offset = max(
+            0,
+            (len(self.floor_segments) * self.segment_width) - self.width()
+        )
+        self.world_offset_x = min(self.world_offset_x, max_offset)
 
     def _tick(self):
         current_time = time.perf_counter()
@@ -331,9 +360,19 @@ class GameWidget(AsyncWidget):
             self.floor_segments.append(self.generate_segment())
             current_max_segment += 1
 
+        self.world_offset_x = max(0, self.world_offset_x)
+
         self.handle_movement(delta_time)
         self.update()
 
+    def _update_world_size(self):
+        _, floor_height = self.get_floor()
+        floor_y = self.height() - floor_height
+
+        self.player_y = min(self.player_y, floor_y - self.player_height)
+
+        max_offset = max(0, (len(self.floor_segments) * self.segment_width) - self.width())
+        self.world_offset_x = min(self.world_offset_x, max_offset)
     def generate_segment(self):
         return random.choice(self.AVAILABLE_COLORS)
 
@@ -368,7 +407,9 @@ class GameWidget(AsyncWidget):
         self.velocity_y += self.gravity * dt_scale
         self.player_y += self.velocity_y * dt_scale
 
-        ground_top = self.floor_y - self.player_height
+        _, floor_height = self.get_floor()
+        floor_y = self.height() - floor_height
+        ground_top = floor_y - self.player_height
         if self.player_y >= ground_top:
             self.player_y = ground_top
             self.velocity_y = 0
@@ -382,6 +423,8 @@ class GameWidget(AsyncWidget):
 
         stopSound()  # Stop any music that might be playing in the menu
 
+        self.update_layout()
+
         self.last_time = time.perf_counter()
         
         if not self.timer.isActive():
@@ -390,6 +433,7 @@ class GameWidget(AsyncWidget):
         self.setFocus()
 
         asyncio.create_task(self._load_bindings())  # Reload bindings in case they were changed in the menu
+        asyncio.create_task(self._load_debug_label_texts())  # Reload debug label texts in case they were changed in the menu
         asyncio.create_task(self._apply_settings())  # Re-apply settings in case they were changed in the menu
 
     async def _load_bindings(self):

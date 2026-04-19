@@ -8,6 +8,18 @@ class VideoManager(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._video_enabled = False
+        self.player = None
+        self.audio_output = None
+        self.video_item = None
+
+        try:
+            self._setup_player()
+            self._video_enabled = True
+        except Exception as err:
+            print(f"Video background disabled: {err}")
+
+    def _setup_player(self):
         # Scene & view
         self.scene = QGraphicsScene(self)
         self.view = QGraphicsView(self.scene, self)
@@ -33,6 +45,8 @@ class VideoManager(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        if not self._video_enabled:
+            return
         # Fill the QGraphicsView
         self.view.setGeometry(self.rect())
         # Scale the video item to fill the view (keep aspect ratio)
@@ -44,17 +58,27 @@ class VideoManager(QWidget):
         self.video_item.setSize(QSizeF(float(w), float(h)))
 
     def play_video(self, filename: str):
+        if not self._video_enabled:
+            return
+
         from pathlib import Path
         path = Path(__file__).resolve().parent.parent.parent / "assets" / "video" / filename
         if not path.exists():
             print(f"ERROR: Video not found: {path}")
             return
-        self.player.setSource(QUrl.fromLocalFile(str(path)))
-        self.player.setLoops(QMediaPlayer.Loops.Infinite)
-        self.player.play()
+        try:
+            self.player.setSource(QUrl.fromLocalFile(str(path)))
+            self.player.setLoops(QMediaPlayer.Loops.Infinite)
+            self.player.play()
+        except Exception as err:
+            print(f"Video playback disabled: {err}")
+            self._video_enabled = False
 
     def stop_video(self):
         """Stops the video playback safely."""
+        if not self._video_enabled:
+            return
+
         if self.player.playbackState() != QMediaPlayer.PlaybackState.StoppedState:
             self.player.stop()
 

@@ -10,7 +10,7 @@ from ...utility.data.textHandler import getText
 from ...utility.data.projectNameHandler import getProjectNameLower
 
 
-def createfpsSelect(navigate, parent=None, background=None) -> QWidget:
+def createfpsSelect(navigate, parent=None, background=None) -> BackgroundWidget:
     class fpsSelect(BackgroundWidget):
         def __init__(self, navigate, parent=None, background=None):
             super().__init__(parent)
@@ -178,4 +178,4 @@ def createfpsSelect(navigate, parent=None, background=None) -> QWidget:
             except ValueError:
                 print(f"Invalid fps: {fps}")
 
-    return fpsSelect(navigate, parent)
+    return fpsSelect(navigate, parent, background)

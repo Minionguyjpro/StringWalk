@@ -195,4 +195,4 @@ def createresolutionSelect(navigate, parent=None, background=None) -> Background
             except ValueError:
                 print(f"Invalid resolution: {resolution}")
 
-    return resolutionSelect(navigate, parent)
+    return resolutionSelect(navigate, parent, background)

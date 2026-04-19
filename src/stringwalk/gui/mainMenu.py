@@ -39,8 +39,7 @@ def createMainMenu(navigate, parent=None, background=None) -> QWidget:
             self.pause_background = None
 
             lobbyMusic = "music", "lobby.mp3"
-
-            playSound(lobbyMusic[0], lobbyMusic[1])
+            playSound(*lobbyMusic)
 
             self._reload_texts()
 
@@ -161,6 +160,9 @@ def createMainMenu(navigate, parent=None, background=None) -> QWidget:
 
             game.show()
             game.raise_()
+
+            parent_container = getattr(self.parent_window, "central_container", self.parent_window)
+            game.setGeometry(parent_container.rect())
 
             game.resume_game()
 

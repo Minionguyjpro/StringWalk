@@ -12,7 +12,7 @@ from ...utility.data.projectNameHandler import getProjectNameLower
 from ...utility.ui.menuRefresh import refresh_all_menus
 
 
-def createlangSelect(navigate, parent=None, background=None) -> QWidget:
+def createlangSelect(navigate, parent=None, background=None) -> BackgroundWidget:
     class langSelect(BackgroundWidget):
         def __init__(self, navigate, parent=None, background=None):
             super().__init__(parent)
@@ -92,4 +92,4 @@ def createlangSelect(navigate, parent=None, background=None) -> QWidget:
             # Refresh all menus
             refresh_all_menus()
 
-    return langSelect(navigate, parent)
+    return langSelect(navigate, parent, background)

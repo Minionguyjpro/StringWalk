@@ -37,12 +37,6 @@ def lockWindowSize(window, width, height):
     Lock window size in logical pixels, respecting DPI scaling.
     width/height = desired physical pixels
     """
-    screen = window.screen() or QApplication.primaryScreen()
-    dpr = screen.devicePixelRatio()
-
-    logical_width = int(width / dpr)
-    logical_height = int(height / dpr)
-
-    window.setMinimumSize(logical_width, logical_height)
-    window.setMaximumSize(logical_width, logical_height)
-    window.resize(logical_width, logical_height)
+    window.setMinimumSize(width, height)
+    window.setMaximumSize(width, height)
+    window.resize(width, height)
