@@ -56,7 +56,7 @@ class GameWidget(AsyncWidget):
         self.floor_segments = [random.choice(self.AVAILABLE_COLORS) for _ in range(100)] 
 
         # Physics
-        self.gravity = 1.0
+        self.gravity = 0.5
         self.jump_velocity = -14.0
         self.velocity_y = 1.0
         self.is_on_ground = True
@@ -404,8 +404,8 @@ class GameWidget(AsyncWidget):
             self.player_y = min(self.floor_y - self.player_height, self.player_y + (self.speed * dt_scale))
 
         # Vertical physics
-        self.velocity_y += self.gravity * dt_scale
-        self.player_y += self.velocity_y * dt_scale
+        self.velocity_y += self.gravity * dt_scale + 0.1 * dt_scale  # Slightly increase gravity over time for a more dynamic feel
+        self.player_y += self.velocity_y * dt_scale + 0.1 * dt_scale  # Apply velocity to position, with a small boost for responsiveness
 
         _, floor_height = self.get_floor()
         floor_y = self.height() - floor_height
