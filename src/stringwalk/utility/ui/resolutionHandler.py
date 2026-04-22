@@ -19,6 +19,22 @@ async def getResolution() -> str:
     # Return result
     return result
 
+async def getWidth() -> int:
+    """
+    Get the width of the currently selected resolution.
+    """
+    resolution = await getResolution()
+    width_str = resolution.split("x")[0]
+    return int(width_str)
+
+async def getHeight() -> int:
+    """
+    Get the height of the currently selected resolution.
+    """
+    resolution = await getResolution()
+    height_str = resolution.split("x")[1]
+    return int(height_str)
+
 def centerWindow(window):
     """
     Center a top-level window on its screen (DPI-safe)

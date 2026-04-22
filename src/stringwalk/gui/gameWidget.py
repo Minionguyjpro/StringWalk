@@ -5,13 +5,25 @@ from ..utility.data.textHandler import getText
 from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
 from ..utility.io.keyManager import load_bindings
-from ..utility.ui.resolutionHandler import getResolution, lockWindowSize
+from ..utility.graphics.Camera import Camera
+from ..utility.gameHandler import generate_platform
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen, QLinearGradient
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QLabel
 import time
 import asyncio
 import random
+
+class Player:
+    def __init__(self):
+        self.x = 50
+        self.y = 300
+        self.width = 50
+        self.height = 50
+        self.color = QColor("red")
+        self.speed = 5
+
+player = Player()
 
 class GameWidget(AsyncWidget):
     def __init__(self, parent=None, on_exit=None):
@@ -26,17 +38,11 @@ class GameWidget(AsyncWidget):
         # Game state
         self.is_paused = False
 
-        # Player block properties
-        self.player_x = 50
-        self.player_y = 300
-        self.player_width = 50
-        self.player_height = 50
-        self.player_color = QColor("red")
-        self.speed = 5
+        self.player = player
+        self.camera = Camera(self)
 
         self.border_color = QColor("black")
         self.border_size = 0
-
 
         # Floor
         self.segment_width = 50
@@ -54,7 +60,9 @@ class GameWidget(AsyncWidget):
             "palegreen"
         ]
 
-        self.floor_segments = [random.choice(self.AVAILABLE_COLORS) for _ in range(100)] 
+        self.floor_segments = [random.choice(self.AVAILABLE_COLORS) for _ in range(100)]
+
+        self.platforms = []
 
         # Physics
         self.gravity = 0.25
@@ -63,10 +71,8 @@ class GameWidget(AsyncWidget):
         self.is_on_ground = True
 
         self.world_offset_x = 0
-        self.camera_y = 0.0
-        self.camera_top_margin = 80
 
-        self.camera_margin = 80
+        self.camera_margin = 180
 
         self.LEFT_KEYS = [Qt.Key.Key_A, Qt.Key.Key_Left]
         self.RIGHT_KEYS = [Qt.Key.Key_D, Qt.Key.Key_Right]
@@ -220,7 +226,7 @@ class GameWidget(AsyncWidget):
 
         # Draw floor segments
         floor_y, floor_height = self.get_floor()
-        draw_offset_y = int(round(-self.camera_y))
+        draw_offset_y = int(round(-self.camera.y))
         for i, color_name in enumerate(self.floor_segments):
             x_pos = i * self.segment_width - self.world_offset_x
             if x_pos > self.width():
@@ -229,7 +235,7 @@ class GameWidget(AsyncWidget):
                 continue
                 
             painter.fillRect(
-                int(x_pos),
+                int(x_pos) - int(self.camera.x),
                 floor_y + draw_offset_y,
                 self.segment_width,
                 floor_height,
@@ -237,21 +243,21 @@ class GameWidget(AsyncWidget):
             )
 
         # Draw player block
-        player_x = int(round(self.player_x))
-        player_y = int(round(self.player_y - self.camera_y))
+        player_x = int(round(self.player.x - self.camera.x))
+        player_y = int(round(self.player.y - self.camera.y))
 
         if hasattr(self, "border_color"):
             pen = QPen(self.border_color, self.border_size)
         else:
-            pen = QPen(self.player_color.darker(), 4)
+            pen = QPen(self.player.color.darker(), 4)
 
         painter.setPen(pen)
-        painter.setBrush(self.player_color)
+        painter.setBrush(self.player.color)
         painter.drawEllipse(
             player_x,
             player_y,
-            self.player_width,
-            self.player_height,
+            self.player.width,
+            self.player.height
         )
 
         painter.end()
@@ -262,6 +268,9 @@ class GameWidget(AsyncWidget):
         self.update()
 
     def keyPressEvent(self, event: QKeyEvent):
+        if event.isAutoRepeat() and not self.is_on_ground:
+            return
+
         # Toggle pause on Escape key
         if event.key() == Qt.Key.Key_Escape:
             if self.is_paused:
@@ -269,16 +278,10 @@ class GameWidget(AsyncWidget):
             else:
                 self.pause_game()
             return
-        
-        # Jumping and shift border effect
-        if event.key() in self.JUMP_KEYS and self.is_on_ground:
-            self.velocity_y = self.jump_velocity
-            self.is_on_ground = False
-            self.setBorder("yellow", 6)
-    
+
         if event.key() == Qt.Key.Key_R:
-            self.player_x = 50
-            self.player_y = 300
+            self.player.x = 50
+            self.player.y = 300
             self.world_offset_x = 0
             self.camera_y = 0.0
 
@@ -327,15 +330,13 @@ class GameWidget(AsyncWidget):
     def update_layout(self):
         self.floor_y, self.floor_height = self.get_floor()
 
-        self.player_y = min(
-            self.player_y,
-            self.floor_y - self.player_height
+        self.player.y = min(
+            self.player.y,
+            self.floor_y - self.player.height
         )
 
-        self._update_camera()
-
-        max_x = self.width() - self.player_width
-        self.player_x = min(max(0, self.player_x), max_x)
+        max_x = self.width() - self.player.width
+        self.player_x = min(max(0, self.player.x), max_x)
 
         max_offset = max(
             0,
@@ -354,9 +355,9 @@ class GameWidget(AsyncWidget):
             actual_fps = 1 / delta_time
         _, floor_height = self.get_floor()
         floor_y = self.height() - floor_height
-        ground_top = floor_y - self.player_height
-        if self.player_y >= ground_top:
-            self.player_y = ground_top
+        ground_top = floor_y - self.player.height
+        if self.player.y >= ground_top:
+            self.player.y = ground_top
             self.velocity_y = 0
             self.is_on_ground = True
             self.debug_labels[0].setText(f"{self.fps_text}: {int(actual_fps)}")
@@ -364,6 +365,12 @@ class GameWidget(AsyncWidget):
 
             for label in self.debug_labels:
                 label.adjustSize()
+
+        # Jumping border effect and physics
+        if any(key in self.keys_pressed for key in self.JUMP_KEYS) and self.is_on_ground:
+            self.velocity_y = self.jump_velocity
+            self.is_on_ground = False
+            self.setBorder("yellow", 6)
 
         visible_segments = int(self.width() / self.segment_width) + 2
 
@@ -375,25 +382,27 @@ class GameWidget(AsyncWidget):
             self.floor_segments.append(self.generate_segment())
             current_max_segment += 1
 
+        while len(self.platforms) < 5:
+            last_x = self.platforms[-1][0] if self.world_offset_x else 0
+            self.platforms.append(generate_platform(None, self.floor_y, self.AVAILABLE_COLORS, last_x + 200))
+
         self.world_offset_x = max(0, self.world_offset_x)
 
         self.handle_movement(delta_time)
-        self._update_camera()
+        self.camera.update()
         self.update()
 
     def _update_world_size(self):
         _, floor_height = self.get_floor()
         floor_y = self.height() - floor_height
 
-        self.player_y = min(self.player_y, floor_y - self.player_height)
+        self.player.y = min(self.player.y, floor_y - self.player.height)
 
-        self._update_camera()
+        self.camera.update()
 
         max_offset = max(0, (len(self.floor_segments) * self.segment_width) - self.width())
         self.world_offset_x = min(self.world_offset_x, max_offset)
 
-    def _update_camera(self):
-        self.camera_y = min(0.0, self.player_y - self.camera_top_margin)
     def generate_segment(self):
         return random.choice(self.AVAILABLE_COLORS)
 
@@ -403,24 +412,14 @@ class GameWidget(AsyncWidget):
 
         # LEFT movement
         if any(key in self.keys_pressed for key in self.LEFT_KEYS):
-            if self.player_x > self.camera_margin:
-                # Move player normally
-                self.player_x -= self.speed * dt_scale
-            else:
-                # Move world
-                self.world_offset_x = max(0, self.world_offset_x - (self.speed * dt_scale))
+            self.player.x -= self.speed * dt_scale
 
         # RIGHT movement
         if any(key in self.keys_pressed for key in self.RIGHT_KEYS):
-            if self.player_x < self.width() - self.camera_margin - self.player_width:
-                # Move player normally
-                self.player_x += self.speed * dt_scale
-            else:
-                # Move world
-                self.world_offset_x += self.speed * dt_scale
+            self.player.x += self.speed * dt_scale
  
         if any(key in self.keys_pressed for key in self.DOWN_KEYS):
-            self.player_y = min(self.floor_y - self.player_height, self.player_y + (self.speed * dt_scale))
+            self.player_y = min(self.floor_y - self.player_height, self.player.y + (self.speed * dt_scale))
 
         if Qt.Key.Key_Space in self.keys_pressed:
             self.setBorder("yellow", 6)
@@ -439,13 +438,13 @@ class GameWidget(AsyncWidget):
         # Vertical physics
         self.velocity_y += self.gravity * dt_scale  # Slightly increase gravity over time for a more dynamic feel
         self.velocity_y = min(self.velocity_y, 15)  # Terminal velocity to prevent excessive falling speed
-        self.player_y += self.velocity_y * dt_scale  # Apply velocity to position, with a small boost for responsiveness
+        self.player.y += self.velocity_y * dt_scale  # Apply velocity to position, with a small boost for responsiveness
 
         _, floor_height = self.get_floor()
         floor_y = self.height() - floor_height
-        ground_top = floor_y - self.player_height
-        if self.player_y >= ground_top:
-            self.player_y = ground_top
+        ground_top = floor_y - self.player.height
+        if self.player.y >= ground_top:
+            self.player.y = ground_top
             self.velocity_y = 0
             self.is_on_ground = True
 
