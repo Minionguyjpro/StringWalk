@@ -7,7 +7,7 @@ from ..utility.configHandler import readConfigItem
 from ..utility.io.keyManager import load_bindings
 from ..utility.graphics.Camera import Camera
 from ..utility.graphics.Terrain import Terrain
-from ..utility.ui.Overlay import Overlay
+#from ..utility.ui.Overlay import Overlay
 from ..utility.gameHandler import generate_platform
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen, QLinearGradient, QPixmap
 from PyQt6.QtCore import Qt, QTimer
@@ -44,7 +44,7 @@ class GameWidget(AsyncWidget):
 
         self.player = player
         self.camera = Camera(self)
-        self.terrain = Terrain(player=self.player)
+        self.terrain = Terrain(player=self.player, game_widget=self)
 
         self.border_color = QColor("black")
         self.border_size = 0
@@ -65,7 +65,7 @@ class GameWidget(AsyncWidget):
             "palegreen"
         ]
 
-        self.floor_segments = [random.choice(self.AVAILABLE_COLORS) for _ in range(100)]
+        self.floor_segments = []
 
         self.platforms = []
 
@@ -76,8 +76,6 @@ class GameWidget(AsyncWidget):
         self.is_on_ground = True
 
         self.world_offset_x = 0
-
-        self.camera_margin = 180
 
         self.LEFT_KEYS = [Qt.Key.Key_A, Qt.Key.Key_Left]
         self.RIGHT_KEYS = [Qt.Key.Key_D, Qt.Key.Key_Right]
@@ -109,7 +107,7 @@ class GameWidget(AsyncWidget):
         # Currently pressed keys
         self.keys_pressed = set()
 
-        self.overlay = Overlay()
+        #self.overlay = Overlay()
 
         self.debug_labels = []
 
@@ -206,7 +204,7 @@ class GameWidget(AsyncWidget):
     def showEvent(self, event):
         super().showEvent(event)
 
-        self._update_world_size()
+        # self._update_world_size()
 
         # Ensure the widget receives keyboard events immediately.
         QTimer.singleShot(0, self._force_focus)
@@ -222,47 +220,15 @@ class GameWidget(AsyncWidget):
         self.setFocus()
 
     def paintEvent(self, event):
+        for x in range(-self.terrain.render_distance, self.terrain.render_distance):
+            nx = self.player.x + x * self.terrain.chunk_size * self.terrain.tile_size
+            self.terrain.add_chunk(nx)
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(Qt.PenStyle.NoPen)
 
-        # Draw background
-        gradient = QLinearGradient(0, 0, 0, self.height())
-        gradient.setColorAt(0, QColor("#1e1e1e"))
-        gradient.setColorAt(1, QColor("#000080"))
-
-        painter.fillRect(event.rect(), gradient)
-
-        tile_w = 128
-        tile_h = 128
-
-        for x in range(0, self.width(), tile_w):
-            painter.drawPixmap(
-                x,
-                self.height(),
-                tile_w,
-                tile_h,
-                self.bg_sheet,
-                0, 0, 128, 128
-            )
-
-        # Draw floor segments
-        floor_y, floor_height = self.get_floor()
-        draw_offset_y = int(round(-self.camera.y))
-        for i, color_name in enumerate(self.floor_segments):
-            x_pos = i * self.segment_width - self.world_offset_x
-            if x_pos > self.width():
-                break
-            if x_pos + self.segment_width < 0:
-                continue
-                
-            painter.fillRect(
-                int(x_pos) - int(self.camera.x),
-                floor_y + draw_offset_y,
-                self.segment_width,
-                floor_height,
-                QColor(color_name)
-            )
+        self.terrain.update_chunks(painter)
 
         # Draw player block
         player_x = int(round(self.player.x - self.camera.x))
@@ -308,7 +274,6 @@ class GameWidget(AsyncWidget):
             self.camera_y = 0.0
 
         self.keys_pressed.add(event.key())
-        self.handle_movement()
         self.update()
 
     def keyReleaseEvent(self, event: QKeyEvent):
@@ -394,36 +359,21 @@ class GameWidget(AsyncWidget):
             self.is_on_ground = False
             self.setBorder("yellow", 6)
 
-        visible_segments = int(self.width() / self.segment_width) + 2
-
-        current_max_segment = len(self.floor_segments)
-
-        needed_segments = int((self.world_offset_x / self.segment_width) + visible_segments) + 1
-
-        while current_max_segment < needed_segments:
-            self.floor_segments.append(self.generate_segment())
-            current_max_segment += 1
-
-        while len(self.platforms) < 5:
-            last_x = self.platforms[-1][0] if self.world_offset_x else 0
-            self.platforms.append(generate_platform(None, self.floor_y, self.AVAILABLE_COLORS, last_x + 200))
 
         self.world_offset_x = max(0, self.world_offset_x)
 
         self.handle_movement(delta_time)
-        self.camera.update()
+        self.camera.update(delta_time)
         self.update()
 
-    def _update_world_size(self):
-        _, floor_height = self.get_floor()
-        floor_y = self.height() - floor_height
+    # def _update_world_size(self):
+    #     _, floor_height = self.get_floor()
+    #     floor_y = self.height() - floor_height
 
-        self.player.y = min(self.player.y, floor_y - self.player.height)
+    #     self.player.y = min(self.player.y, floor_y - self.player.height)
 
-        self.camera.update()
-
-        max_offset = max(0, (len(self.floor_segments) * self.segment_width) - self.width())
-        self.world_offset_x = min(self.world_offset_x, max_offset)
+    #     max_offset = max(0, (len(self.floor_segments) * self.segment_width) - self.width())
+    #     self.world_offset_x = min(self.world_offset_x, max_offset)
 
     def generate_segment(self):
         return random.choice(self.AVAILABLE_COLORS)
@@ -443,14 +393,13 @@ class GameWidget(AsyncWidget):
         if any(key in self.keys_pressed for key in self.DOWN_KEYS):
             self.player_y = min(self.floor_y - self.player_height, self.player.y + (self.speed * dt_scale))
 
-        if Qt.Key.Key_Space in self.keys_pressed:
-            self.setBorder("yellow", 6)
-
-        elif Qt.Key.Key_Shift in self.keys_pressed:
-            self.setBorder("gray", 4)
-
+        if self.velocity_y <= 0 and any(key in self.keys_pressed for key in self.JUMP_KEYS):
+            self.setBorder("#dddda0", 6)
         else:
             self.setBorder("", 0)
+
+        if Qt.Key.Key_Shift in self.keys_pressed:
+            self.setBorder("gray", 4)
         
         if Qt.Key.Key_Shift in self.keys_pressed:
             self.speed = 10
