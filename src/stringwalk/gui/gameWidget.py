@@ -6,22 +6,26 @@ from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
 from ..utility.io.keyManager import load_bindings
 from ..utility.graphics.Camera import Camera
+from ..utility.graphics.Terrain import Terrain
+from ..utility.ui.Overlay import Overlay
 from ..utility.gameHandler import generate_platform
-from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen, QLinearGradient
+from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen, QLinearGradient, QPixmap
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QLabel
+from dataclasses import dataclass, field
 import time
 import asyncio
 import random
 
+
+@dataclass
 class Player:
-    def __init__(self):
-        self.x = 50
-        self.y = 300
-        self.width = 50
-        self.height = 50
-        self.color = QColor("red")
-        self.speed = 5
+    x: int = 50
+    y: int = 300
+    width: int = 50
+    height: int = 50
+    color: QColor = field(default_factory=lambda: QColor("red"))
+    speed: int = 5
 
 player = Player()
 
@@ -40,6 +44,7 @@ class GameWidget(AsyncWidget):
 
         self.player = player
         self.camera = Camera(self)
+        self.terrain = Terrain(player=self.player)
 
         self.border_color = QColor("black")
         self.border_size = 0
@@ -99,8 +104,12 @@ class GameWidget(AsyncWidget):
         self.timer.timeout.connect(self._tick)
         self.timer.start(self.update_interval)
 
+        self.bg_sheet = QPixmap("../assets/sprites/sprinkling_power.png")
+
         # Currently pressed keys
         self.keys_pressed = set()
+
+        self.overlay = Overlay()
 
         self.debug_labels = []
 
@@ -223,6 +232,19 @@ class GameWidget(AsyncWidget):
         gradient.setColorAt(1, QColor("#000080"))
 
         painter.fillRect(event.rect(), gradient)
+
+        tile_w = 128
+        tile_h = 128
+
+        for x in range(0, self.width(), tile_w):
+            painter.drawPixmap(
+                x,
+                self.height(),
+                tile_w,
+                tile_h,
+                self.bg_sheet,
+                0, 0, 128, 128
+            )
 
         # Draw floor segments
         floor_y, floor_height = self.get_floor()

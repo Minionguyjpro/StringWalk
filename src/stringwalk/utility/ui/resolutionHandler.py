@@ -13,11 +13,21 @@ async def getResolution() -> str:
         # Set a default resolution if the current resolution cannot be read
         resolution = "640x480"
         result = resolution
+    elif resolution == "fullscreen" or resolution == "maximized":
+        result = await getResolutionMax()
     else:
         result = resolution
 
     # Return result
     return result
+
+async def getResolutionMax() -> str:
+    """
+    Get the resolution of the primary screen for fullscreen or maximized mode.
+    """
+    screen = QApplication.primaryScreen()
+    size = screen.size()
+    return f"{size.width()}x{size.height()}"
 
 async def getWidth() -> int:
     """
