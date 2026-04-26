@@ -1,5 +1,6 @@
 from PyQt6.QtGui import QLinearGradient, QColor
 from .Platform import Platform
+import random
 
 
 SCALE = 0.05
@@ -13,12 +14,11 @@ class Terrain:
         self.chunks = []
         self.chunks_posses = []
         self.chunk_size = 16
-        self.render_distance = 5
+        self.render_distance = 30
         self.world_height = 40
         self.tile_size = 64
 
-        self.player = player
-        print(int(self.player.x), "X")        
+        self.player = player    
 
     def pos_to_chunk_pos(self, pos):
         return pos // self.chunk_size // self.tile_size
@@ -41,17 +41,14 @@ class Terrain:
             return
         
         chunk = []
-        y_standard = self.game_widget.get_floor()[0]
+        y_standard = random.randint(9, 11)
         for x in range(self.chunk_size):
             row = []
             for y in range(-self.world_height, self.world_height + 1):
-                if y * self.tile_size < y_standard:
-                    gradient = QLinearGradient(0, 0, 0, self.world_height)
-                    gradient.setColorAt(0, QColor("#1e1e1e"))
-                    gradient.setColorAt(1, QColor("#000080"))
-                    row.append(Platform(x * self.tile_size + x_pos, y * self.tile_size, self.tile_size, self.tile_size, gradient, self.game_widget))
+                if y < y_standard:
+                    row.append(Platform("sky_tile", x * self.tile_size + x_pos, y * self.tile_size, self.tile_size, self.tile_size, "blue", self.game_widget))
                 else:
-                    row.append(Platform(x * self.tile_size + x_pos, y * self.tile_size, self.tile_size, self.tile_size, "green", self.game_widget))
+                    row.append(Platform("ground_tile", x * self.tile_size + x_pos, y * self.tile_size, self.tile_size, self.tile_size, "green", self.game_widget, solid=True))
             chunk.append(row)
         self.chunks.append(chunk)
-        self.chunks_posses.append(chunk_x)           
+        self.chunks_posses.append(chunk_x)

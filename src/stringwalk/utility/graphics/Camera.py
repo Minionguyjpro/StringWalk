@@ -12,7 +12,7 @@ class Camera:
         self.y = 0
         self.offset = [0.0, 0.0] # Offset for smooth camera movement
         self.last_offsets = []
-        self.offset_delay = 30 # Number of frames to delay the offset
+        self.offset_delay = 30 / 240 # Number of frames to delay the offset
         self.top_margin = 150.0 # Margin to keep above the player
 
         self.player = player
@@ -43,7 +43,7 @@ class Camera:
             self.player.y - self.height / 2 + self.player.height / 2
         ))
         
-        if len(self.last_offsets) > self.offset_delay * self.fps * delta_time:
+        if len(self.last_offsets) > self.offset_delay * self.fps:
             self.x = int(self.last_offsets[0][0])
             self.y = int(self.last_offsets[0][1])
             self.last_offsets.pop(0)

@@ -26,6 +26,8 @@ class Player:
     height: int = 50
     color: QColor = field(default_factory=lambda: QColor("red"))
     speed: int = 5
+    velocity_y: int = 1
+    facing: str = "right"
 
 player = Player()
 
@@ -49,21 +51,9 @@ class GameWidget(AsyncWidget):
         self.border_color = QColor("black")
         self.border_size = 0
 
-        # Floor
-        self.segment_width = 50
-
-        self.AVAILABLE_COLORS = [
-            "darkgreen",
-            "green",
-            "forestgreen",
-            "limegreen",
-            "seagreen",
-            "mediumseagreen",
-            "springgreen",
-            "mediumspringgreen",
-            "lightgreen",
-            "palegreen"
-        ]
+        self.gradient = QLinearGradient(0, 0, self.width(), self.height())
+        self.gradient.setColorAt(0, QColor("#1e1e1e"))
+        self.gradient.setColorAt(1, QColor("#000080"))
 
         self.floor_segments = []
 
@@ -72,7 +62,6 @@ class GameWidget(AsyncWidget):
         # Physics
         self.gravity = 0.25
         self.jump_velocity = -14.0
-        self.velocity_y = 1.0
         self.is_on_ground = True
 
         self.world_offset_x = 0
@@ -209,11 +198,6 @@ class GameWidget(AsyncWidget):
         # Ensure the widget receives keyboard events immediately.
         QTimer.singleShot(0, self._force_focus)
 
-    def get_floor(self):
-        floor_height = int(self.height() * 0.5)
-        floor_y = self.height() - floor_height
-        return floor_y, floor_height
-
     def _force_focus(self):
         self.raise_()
         self.activateWindow()
@@ -227,6 +211,14 @@ class GameWidget(AsyncWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(Qt.PenStyle.NoPen)
+
+        painter.fillRect(
+            0,
+            0,
+            self.width(),
+            self.height(),
+            self.gradient
+        )
 
         self.terrain.update_chunks(painter)
 
@@ -296,7 +288,6 @@ class GameWidget(AsyncWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
 
-        self.update_layout()
         self.update()
 
     def pause_game(self):
@@ -314,23 +305,6 @@ class GameWidget(AsyncWidget):
 
         self.on_exit(pixmap)
 
-    def update_layout(self):
-        self.floor_y, self.floor_height = self.get_floor()
-
-        self.player.y = min(
-            self.player.y,
-            self.floor_y - self.player.height
-        )
-
-        max_x = self.width() - self.player.width
-        self.player_x = min(max(0, self.player.x), max_x)
-
-        max_offset = max(
-            0,
-            (len(self.floor_segments) * self.segment_width) - self.width()
-        )
-        self.world_offset_x = min(self.world_offset_x, max_offset)
-
     def _tick(self):
         current_time = time.perf_counter()
         delta_time = current_time - self.last_time
@@ -340,25 +314,12 @@ class GameWidget(AsyncWidget):
 
         if delta_time > 0:
             actual_fps = 1 / delta_time
-        _, floor_height = self.get_floor()
-        floor_y = self.height() - floor_height
-        ground_top = floor_y - self.player.height
-        if self.player.y >= ground_top:
-            self.player.y = ground_top
-            self.velocity_y = 0
-            self.is_on_ground = True
-            self.debug_labels[0].setText(f"{self.fps_text}: {int(actual_fps)}")
-            self.debug_labels[1].setText(f"{self.latency_text}: {int(delta_time * 1000)} ms")
+        
+        self.debug_labels[0].setText(f"{self.fps_text}: {int(actual_fps)}")
+        self.debug_labels[1].setText(f"{self.latency_text}: {int(delta_time * 1000)} ms")
 
-            for label in self.debug_labels:
-                label.adjustSize()
-
-        # Jumping border effect and physics
-        if any(key in self.keys_pressed for key in self.JUMP_KEYS) and self.is_on_ground:
-            self.velocity_y = self.jump_velocity
-            self.is_on_ground = False
-            self.setBorder("yellow", 6)
-
+        for label in self.debug_labels:
+            label.adjustSize()
 
         self.world_offset_x = max(0, self.world_offset_x)
 
@@ -382,21 +343,46 @@ class GameWidget(AsyncWidget):
         # Scale per-frame values so gameplay speed stays consistent across FPS values.
         dt_scale = delta_time * 60
 
+        if any(key in self.keys_pressed for key in self.DOWN_KEYS):
+            self.player_y = min(self.player.height, self.player.y + (self.speed * dt_scale))
+
+        # Jumping border effect and physics
+        if any(key in self.keys_pressed for key in self.JUMP_KEYS) and self.is_on_ground:
+            self.player.velocity_y += self.jump_velocity
+            self.setBorder("#dddda0", 6)
+        else:
+            self.setBorder("", 0)
+
+        # Vertical physics
+        self.player.velocity_y += self.gravity * dt_scale  # Slightly increase gravity over time for a more dynamic feel
+        self.player.velocity_y = min(self.player.velocity_y, 15)  # Terminal velocity to prevent excessive falling speed
+        self.player.y += self.player.velocity_y * dt_scale  # Apply velocity to position, with a small boost for responsiveness
+
+        self.is_on_ground = False 
+
+        for chunk in self.terrain.chunks:
+            if not self.terrain.chunk_rendered(chunk):
+                continue
+            for row in chunk:
+                for platform in row:
+                    platform.collide_y(self.player)
+
         # LEFT movement
         if any(key in self.keys_pressed for key in self.LEFT_KEYS):
+            self.player.facing = "left"
             self.player.x -= self.speed * dt_scale
 
         # RIGHT movement
         if any(key in self.keys_pressed for key in self.RIGHT_KEYS):
+            self.player.facing = "right"
             self.player.x += self.speed * dt_scale
  
-        if any(key in self.keys_pressed for key in self.DOWN_KEYS):
-            self.player_y = min(self.floor_y - self.player_height, self.player.y + (self.speed * dt_scale))
-
-        if self.velocity_y <= 0 and any(key in self.keys_pressed for key in self.JUMP_KEYS):
-            self.setBorder("#dddda0", 6)
-        else:
-            self.setBorder("", 0)
+        for chunk in self.terrain.chunks:
+            if not self.terrain.chunk_rendered(chunk):
+                continue
+            for row in chunk:
+                for platform in row:
+                    platform.collide_x(self.player)
 
         if Qt.Key.Key_Shift in self.keys_pressed:
             self.setBorder("gray", 4)
@@ -406,19 +392,6 @@ class GameWidget(AsyncWidget):
         else:
             self.speed = 5
 
-        # Vertical physics
-        self.velocity_y += self.gravity * dt_scale  # Slightly increase gravity over time for a more dynamic feel
-        self.velocity_y = min(self.velocity_y, 15)  # Terminal velocity to prevent excessive falling speed
-        self.player.y += self.velocity_y * dt_scale  # Apply velocity to position, with a small boost for responsiveness
-
-        _, floor_height = self.get_floor()
-        floor_y = self.height() - floor_height
-        ground_top = floor_y - self.player.height
-        if self.player.y >= ground_top:
-            self.player.y = ground_top
-            self.velocity_y = 0
-            self.is_on_ground = True
-
     def resume_game(self):
         if not self.is_paused:
             return
@@ -426,8 +399,6 @@ class GameWidget(AsyncWidget):
         self.is_paused = False
 
         stopSound()  # Stop any music that might be playing in the menu
-
-        self.update_layout()
 
         self.last_time = time.perf_counter()
         
