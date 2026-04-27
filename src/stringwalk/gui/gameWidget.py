@@ -2,33 +2,24 @@ from ..utility.ui.asyncWidget import AsyncWidget
 from ..utility.ui.menuHandler import makeMenuLayout, addMenuWidget
 from ..utility.audio.soundHandler import stopSound
 from ..utility.data.textHandler import getText
+from ..utility.data.projectNameHandler import getProjectDir
 from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
 from ..utility.io.keyManager import load_bindings
 from ..utility.graphics.Camera import Camera
 from ..utility.graphics.Terrain import Terrain
-#from ..utility.ui.Overlay import Overlay
+from ..utility.object.Player import Player
+from ..utility.object.Entity import Entity
+from ..utility.object.objectParser import getFilenamesJson
+from ..utility.ui.Overlay import Overlay
 from ..utility.gameHandler import generate_platform
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen, QLinearGradient, QPixmap
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QLabel
-from dataclasses import dataclass, field
 import time
 import asyncio
 import random
 
-
-@dataclass
-class Player:
-    x: int = 50
-    y: int = 300
-    width: int = 50
-    height: int = 50
-    color: QColor = field(default_factory=lambda: QColor("red"))
-    speed: int = 5
-    velocity_x: int = 0
-    velocity_y: int = 0
-    facing: str = "right"
 
 player = Player()
 
@@ -48,24 +39,23 @@ class GameWidget(AsyncWidget):
         self.player = player
         self.camera = Camera(self)
         self.terrain = Terrain(player=self.player, game_widget=self)
+        self.overlay = Overlay(self)
 
         self.border_color = QColor("black")
         self.border_size = 0
 
-        self.gradient = QLinearGradient(0, 0, self.width(), self.height())
-        self.gradient.setColorAt(0, QColor("#1e1e1e"))
-        self.gradient.setColorAt(1, QColor("#000080"))
+        self.background = QLinearGradient(0, 0, self.width(), self.height())
+        self.background.setColorAt(0, QColor("#1e1e1e"))
+        self.background.setColorAt(1, QColor("#000080"))
 
-        self.floor_segments = []
-
+        self.entities = []
+        self.project_dir = getProjectDir()
+        self.entity_data = getFilenamesJson(f"{self.project_dir}/config/entity")
         self.platforms = []
 
         # Physics
         self.gravity = 0.25
         self.jump_velocity = -14.0
-        self.is_on_ground = True
-
-        self.world_offset_x = 0
 
         self.LEFT_KEYS = [Qt.Key.Key_A, Qt.Key.Key_Left]
         self.RIGHT_KEYS = [Qt.Key.Key_D, Qt.Key.Key_Right]
@@ -97,21 +87,15 @@ class GameWidget(AsyncWidget):
         # Currently pressed keys
         self.keys_pressed = set()
 
-        #self.overlay = Overlay()
+        self.texts = {
+                "fps": "FPS",
+                "latency": "Latency"
+        }
 
-        self.debug_labels = []
+        self.setup_entities()
 
-        for i, name in enumerate(["fps", "latency"]):
-            label = QLabel(None, self)
-            label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-            label.move(10, 10 + i * 20)
-            self.debug_labels.append(label)
-
-        self.fps_text = "FPS"
-        self.latency_text = "Latency"
-
-        asyncio.create_task(self._load_bindings()   )
-        asyncio.create_task(self._load_debug_label_texts())
+        asyncio.create_task(self._load_bindings())
+        asyncio.create_task(self._load_overlay())
         asyncio.create_task(self._apply_settings())
 
     def get_qt_key(self, key_name: str, fallback):
@@ -191,10 +175,13 @@ class GameWidget(AsyncWidget):
         
         self.BORDER_RELEASE_KEYS = self.JUMP_KEYS + [Qt.Key.Key_Shift]
 
+    async def _load_overlay(self):
+        if await self.overlay.is_enabled():
+            self.overlay.register("fps", self.texts["fps"])
+            self.overlay.register("latency", self.texts["latency"])
+
     def showEvent(self, event):
         super().showEvent(event)
-
-        # self._update_world_size()
 
         # Ensure the widget receives keyboard events immediately.
         QTimer.singleShot(0, self._force_focus)
@@ -213,15 +200,19 @@ class GameWidget(AsyncWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(Qt.PenStyle.NoPen)
 
+        # Paint background gradient
         painter.fillRect(
             0,
             0,
             self.width(),
             self.height(),
-            self.gradient
+            self.background
         )
 
         self.terrain.update_chunks(painter)
+
+        for entity in self.entities:
+            entity.update(painter)
 
         # Draw player block
         player_x = int(round(self.player.x - self.camera.x))
@@ -243,7 +234,27 @@ class GameWidget(AsyncWidget):
 
         painter.end()
 
-    def setBorder(self, color, size):
+    def setup_entities(self):
+        for data in self.entity_data:
+            entity_size = 64
+
+            random_x = self.player.x - 400 + random.randint(0, 800)
+            random_y = self.terrain.y_standard - entity_size 
+
+            image_path = f"{self.project_dir}/assets/sprites/{data}.png"
+            print(image_path)
+
+            obj = Entity(
+                x=0,
+                y=random_y,
+                width=entity_size,
+                height=entity_size,
+                image_path=image_path,
+                game_widget=self
+            )
+            self.entities.append(obj)
+
+    def setBorder(self, color: str, size: int):
         self.border_color = QColor(color)
         self.border_size = size
         self.update()
@@ -262,6 +273,9 @@ class GameWidget(AsyncWidget):
             self.player.y = 300
             self.world_offset_x = 0
             self.camera_y = 0.0
+
+        if not event.isAutoRepeat():
+            self.timer.start()
 
         self.keys_pressed.add(event.key())
         self.update()
@@ -313,29 +327,21 @@ class GameWidget(AsyncWidget):
         if delta_time > 0:
             actual_fps = 1 / delta_time
         
-        self.debug_labels[0].setText(f"{self.fps_text}: {int(actual_fps)}")
-        self.debug_labels[1].setText(f"{self.latency_text}: {int(delta_time * 1000)} ms")
+        if len(self.overlay.labels) >= 2:
+            self.overlay.set("fps", int(actual_fps))
+            self.overlay.set("latency", int(delta_time * 1000), "ms")
 
-        for label in self.debug_labels:
+        for label in self.overlay.labels.values():
             label.adjustSize()
-
-        self.world_offset_x = max(0, self.world_offset_x)
 
         self.handle_movement(delta_time)
         self.camera.update(delta_time)
         self.update()
 
-    # def _update_world_size(self):
-    #     _, floor_height = self.get_floor()
-    #     floor_y = self.height() - floor_height
-
-    #     self.player.y = min(self.player.y, floor_y - self.player.height)
-
-    #     max_offset = max(0, (len(self.floor_segments) * self.segment_width) - self.width())
-    #     self.world_offset_x = min(self.world_offset_x, max_offset)
-
-    def generate_segment(self):
-        return random.choice(self.AVAILABLE_COLORS)
+    def _do_jump(self):
+        if self.player.is_on_ground:
+            self.player.velocity_y = self.jump_velocity
+            self.player.is_on_ground = False
 
     def handle_movement(self, delta_time=1 / 60):
         # Scale per-frame values so gameplay speed stays consistent across FPS values.
@@ -345,11 +351,10 @@ class GameWidget(AsyncWidget):
         #     self.player.y = min(self.player.height, self.player.y + (self.player.speed * dt_scale))
 
         # Jumping border effect and physics
-        if any(key in self.keys_pressed for key in self.JUMP_KEYS) and self.is_on_ground:
-            self.player.velocity_y += self.jump_velocity
-            self.setBorder("#dddda0", 6)
-        else:
-            self.setBorder("", 0)
+        jumping = any(key in self.keys_pressed for key in self.JUMP_KEYS)
+        
+        if jumping:
+            self._do_jump()
 
         # Vertical physics
         self.player.velocity_y += self.gravity * dt_scale  # Slightly increase gravity over time for a more dynamic feel
@@ -357,7 +362,12 @@ class GameWidget(AsyncWidget):
         self.player.previous_y = self.player.y  # Store previous Y position for better collision detection
         self.player.y += self.player.velocity_y * dt_scale  # Apply velocity to position, with a small boost for responsiveness
 
-        self.is_on_ground = False 
+        for entity in self.entities:
+            entity.velocity_y += self.gravity * dt_scale
+            entity.previous_y = entity.y
+            entity.y += entity.velocity_y * dt_scale
+
+        self.player.is_on_ground = False 
 
         for chunk in self.terrain.chunks:
             if not self.terrain.chunk_rendered(chunk):
@@ -365,31 +375,38 @@ class GameWidget(AsyncWidget):
             for row in chunk:
                 for platform in row:
                     platform.collide_y(self.player)
+                    for entity in self.entities:
+                        platform.collide_y(entity)
 
-        self.move_x = 0
+        self.player.velocity_x = 0  # Reset horizontal velocity each frame, will be set based on input below
 
         # LEFT movement
         if any(key in self.keys_pressed for key in self.LEFT_KEYS):
             self.player.facing = "left"
-            self.move_x -= self.player.speed
+            self.player.velocity_x -= self.player.speed
 
         # RIGHT movement
         if any(key in self.keys_pressed for key in self.RIGHT_KEYS):
             self.player.facing = "right"
-            self.move_x += self.player.speed
+            self.player.velocity_x += self.player.speed
 
-        self.player.x += self.move_x * dt_scale
+        self.player.x += self.player.velocity_x * dt_scale
  
         for chunk in self.terrain.chunks:
             if not self.terrain.chunk_rendered(chunk):
                 continue
             for row in chunk:
                 for platform in row:
-                    if platform.collide_x(self.player):
-                        break
-
-        if Qt.Key.Key_Shift in self.keys_pressed:
+                    platform.collide_x(self.player)
+                    for entity in self.entities:
+                        platform.collide_x(entity)
+    
+        if jumping:
+            self.setBorder("#dddda0", 6)
+        elif Qt.Key.Key_Shift in self.keys_pressed:
             self.setBorder("gray", 4)
+        else:
+            self.setBorder("", 0)
         
         if Qt.Key.Key_Shift in self.keys_pressed:
             self.player.speed = 10
@@ -412,19 +429,12 @@ class GameWidget(AsyncWidget):
         self.setFocus()
 
         asyncio.create_task(self._load_bindings())  # Reload bindings in case they were changed in the menu
-        asyncio.create_task(self._load_debug_label_texts())  # Reload debug label texts in case they were changed in the menu
+        asyncio.create_task(self.overlay._load_translations())  # Reload translations in case they were changed in the menu
         asyncio.create_task(self._apply_settings())  # Re-apply settings in case they were changed in the menu
 
     async def _load_bindings(self):
         self.bindings = await load_bindings()
         self.apply_bindings()
-
-    async def _load_debug_label_texts(self):
-        try:
-            self.fps_text = await getText("fps")
-            self.latency_text = await getText("latency")
-        except Exception as e:
-            print(f"Error loading debug label texts: {e}")
     
     async def _apply_settings(self):
         try:

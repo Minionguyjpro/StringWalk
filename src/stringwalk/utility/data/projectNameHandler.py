@@ -11,3 +11,6 @@ def getProjectName():
 def getProjectNameLower():
     result = getProjectName().lower()
     return result
+
+def getProjectDir():
+    return f"src/{getProjectNameLower()}"

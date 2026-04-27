@@ -9,12 +9,12 @@
     "language": "Język",
     "resolution": "Rozdzielczość",
     "back": "Wróć",
-        "fps": "FPS",
-        "hotkeys": "Skróty klawiszowe",
-        "jump": "Skok",
-        "move_left": "W lewo",
-        "move_right": "W prawo",
-        "pause": "Pauza",
+    "fps": "FPS",
+    "hotkeys": "Skróty klawiszowe",
+    "jump": "Skok",
+    "move_left": "W lewo",
+    "move_right": "W prawo",
+    "pause": "Pauza",
 
     "fullscreen": "Pełny ekran",
     "maximized": "Zmaksymalizowane"

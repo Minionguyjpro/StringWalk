@@ -133,4 +133,7 @@ class AudioManager:
         wtype = type(widget).__name__
         return self.sfx_map.get(wtype, {}).get(event_name)
 
+    def _is_muted() -> bool:
+        return self.music_muted and self.sfx_output is not None and self.sfx_output.isMuted()
+
 audio = AudioManager()

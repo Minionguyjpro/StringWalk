@@ -17,6 +17,9 @@ class Platform:
         if self.tile_id == "sky_tile":
             return
 
+        # if self.tile_id == "ground_tile":
+        #     return
+
         painter.fillRect(
             self.x - self.game_widget.camera.x,
             self.y - self.game_widget.camera.y,
@@ -25,38 +28,38 @@ class Platform:
             self.color
         )
 
-    def collide_x(self, player):
+    def collide_x(self, entity):
         if not self.properties.get("solid", False):
             return False
         
-        if player.y + player.height <= self.y or player.y >= self.y + self.height:
+        if entity.y + entity.height <= self.y or entity.y >= self.y + self.height:
             return False
 
-        if player.x + player.width <= self.x or player.x >= self.x + self.width:
+        if entity.x + entity.width <= self.x or entity.x >= self.x + self.width:
             return False
 
-        if self.game_widget.move_x < 0:
-            player.x = self.x + self.width
-        elif self.game_widget.move_x > 0:
-            player.x = self.x - player.width
+        if entity.velocity_x < 0:
+            entity.x = self.x + self.width
+        elif entity.velocity_x > 0:
+            entity.x = self.x - entity.width
 
-        player.velocity_x = 0
+        entity.velocity_x = 0
         return True
 
-    def collide_y(self, player):
+    def collide_y(self, entity):
         if not self.properties.get("solid", False):
             return False
 
-        if player.x >= self.x + self.width or player.x + player.width <= self.x:
+        if entity.x >= self.x + self.width or entity.x + entity.width <= self.x:
             return False
 
-        if player.velocity_y <= 0:
+        if entity.velocity_y <= 0:
             return False
 
-        if player.previous_y + player.height <= self.y and player.y + player.height >= self.y:
-            player.y = self.y - player.height
-            player.velocity_y = 0
-            self.game_widget.is_on_ground = True
+        if entity.previous_y + entity.height <= self.y and entity.y + entity.height >= self.y:
+            entity.y = self.y - entity.height
+            entity.velocity_y = 0
+            entity.is_on_ground = True
             return True
 
         return False

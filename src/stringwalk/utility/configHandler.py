@@ -9,7 +9,7 @@ import asyncio
 
 config_lock = asyncio.Lock()
 
-def getConfigPath(config_file: str | None = "config.json") -> Path:
+def getConfigPath(self, config_file: str | None = "config.json") -> Path:
     """Path to the config."""
     if config_file is None:
         config_file = "config.json"

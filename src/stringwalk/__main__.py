@@ -1,9 +1,10 @@
 from PyQt6.QtWidgets import QApplication, QMainWindow, QSizePolicy, QWidget, QVBoxLayout, QStackedLayout
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QIcon
 from .utility.qtMessageHandler import installQtMessageHandler
 from .utility.filter.SFXFilter import SFXFilter
 from .utility.ui.qssProcessor import applyGlobalStyles
-from .utility.data.projectNameHandler import getProjectName
+from .utility.data.projectNameHandler import getProjectName, getProjectNameLower, getProjectDir
 from .utility.ui.resolutionHandler import getResolution, centerWindow, lockWindowSize
 from .utility.video.videoManager import VideoManager
 from .gui.mainMenu import createMainMenu
@@ -38,8 +39,12 @@ def gameExec():
     class MainWindow(QMainWindow):
         def __init__(self):
             super().__init__()
-            title = getProjectName()
-            self.setWindowTitle(title)
+            self.name = "StringWalk"
+            self.setWindowTitle(self.name)
+
+            icon_path = os.path.join(getProjectDir(),"assets", f"{getProjectNameLower()}.ico")
+            print(icon_path)
+            self.setWindowIcon(QIcon(icon_path))
 
             # Central container
             self.central_container = QWidget(self)

@@ -1,28 +1,52 @@
-from dataclasses import dataclass, field
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QLabel
+from ..configHandler import readConfigItem, writeConfigItem
+from ..data.textHandler import getText
+from dataclasses import dataclass, field
+import asyncio
 
 
-@dataclass
 class Overlay:
-    duration: int
-    start_time: float
-    debug_labels: list = field(default_factory=list)
-    texts: list = field(default_factory=list)
+    def __init__(self, game_widget):
+        self.game_widget = game_widget
+        
+        self.labels = {}
+        self.values = {}
 
-def is_active(self, current_time):
-        return current_time - self.start_time < self.duration
+        self.display = {}
 
-def create_debug_label(self, i):
-    self.texts = [
-         "fps",
-         "latency"
-    ]
-
-    for i, name in enumerate([self.texts[i] for i in range(len(self.texts))]):
-        label = QLabel(None)
+    def register(self, key: str, label_text: str):
+        label = QLabel(self.game_widget)
         label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        label.move(10, 10 + i * 20)
-        self.debug_labels.append(label)
 
-overlay = Overlay()
+        index = len(self.labels)
+        label.move(10, 10 + index * 20)
+        
+        asyncio.create_task(self._load_translations())
+
+        label.show()
+
+        self.labels[key] = label
+        self.values[key] = label_text
+
+    def set(self, key: str, value, unit=""):
+        if key in self.labels:
+            prefix = self.display.get(key, key)
+            if unit:
+                self.labels[key].setText(f"{prefix}: {value} {unit}")
+            else:
+                self.labels[key].setText(f"{prefix}: {value}")
+
+    async def _load_translations(self):
+        for key in self.labels.keys():
+            self.display[key] = await getText(key)
+
+    @staticmethod
+    async def is_enabled() -> bool:
+        state = await readConfigItem("debug_mode", default=False)
+        
+        if state is None:
+            await writeConfigItem("debug_mode", False)
+            return False
+        
+        return state

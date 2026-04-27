@@ -17,6 +17,7 @@ class Terrain:
         self.render_distance = 30
         self.world_height = 40
         self.tile_size = 64
+        self.y_standard = 10
 
         self.player = player    
 
@@ -41,11 +42,11 @@ class Terrain:
             return
         
         chunk = []
-        y_standard = random.randint(9, 11)
+        self.y_standard = random.randint(9, 11)
         for x in range(self.chunk_size):
             row = []
             for y in range(-self.world_height, self.world_height + 1):
-                if y < y_standard:
+                if y < self.y_standard:
                     row.append(Platform("sky_tile", x * self.tile_size + x_pos, y * self.tile_size, self.tile_size, self.tile_size, "blue", self.game_widget))
                 else:
                     row.append(Platform("ground_tile", x * self.tile_size + x_pos, y * self.tile_size, self.tile_size, self.tile_size, "green", self.game_widget, solid=True))
