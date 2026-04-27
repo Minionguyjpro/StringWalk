@@ -29,27 +29,34 @@ class Platform:
         if not self.properties.get("solid", False):
             return False
         
-        if player.y > self.y + self.height or player.y + player.height < self.y:
+        if player.y + player.height <= self.y or player.y >= self.y + self.height:
             return False
 
-        if player.x + player.width > self.x and player.x < self.x + self.width:
-            if player.facing == "left":
-                player.x = self.x - player.width
-                return True
-            elif player.facing == "right":
-                player.x = self.x + self.width
-                return True
+        if player.x + player.width <= self.x or player.x >= self.x + self.width:
             return False
-        return False
+
+        if self.game_widget.move_x < 0:
+            player.x = self.x + self.width
+        elif self.game_widget.move_x > 0:
+            player.x = self.x - player.width
+
+        player.velocity_x = 0
+        return True
 
     def collide_y(self, player):
-        if player.y + player.height < self.y or not self.properties.get("solid", False):
+        if not self.properties.get("solid", False):
             return False
 
-        if player.x > self.x + self.width or player.x + player.width < self.x:
+        if player.x >= self.x + self.width or player.x + player.width <= self.x:
             return False
 
-        player.y = self.y - player.height
-        player.velocity_y = 0
+        if player.velocity_y <= 0:
+            return False
 
-        self.game_widget.is_on_ground = True
+        if player.previous_y + player.height <= self.y and player.y + player.height >= self.y:
+            player.y = self.y - player.height
+            player.velocity_y = 0
+            self.game_widget.is_on_ground = True
+            return True
+
+        return False

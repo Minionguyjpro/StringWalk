@@ -26,7 +26,8 @@ class Player:
     height: int = 50
     color: QColor = field(default_factory=lambda: QColor("red"))
     speed: int = 5
-    velocity_y: int = 1
+    velocity_x: int = 0
+    velocity_y: int = 0
     facing: str = "right"
 
 player = Player()
@@ -248,9 +249,6 @@ class GameWidget(AsyncWidget):
         self.update()
 
     def keyPressEvent(self, event: QKeyEvent):
-        if event.isAutoRepeat() and not self.is_on_ground:
-            return
-
         # Toggle pause on Escape key
         if event.key() == Qt.Key.Key_Escape:
             if self.is_paused:
@@ -276,7 +274,7 @@ class GameWidget(AsyncWidget):
             self.setBorder("", 0)
 
         if event.key() == Qt.Key.Key_Shift:
-            self.speed = 5
+            self.player.speed = 5
 
     def closeEvent(self, event):
         self.timer.stop()
@@ -343,8 +341,8 @@ class GameWidget(AsyncWidget):
         # Scale per-frame values so gameplay speed stays consistent across FPS values.
         dt_scale = delta_time * 60
 
-        if any(key in self.keys_pressed for key in self.DOWN_KEYS):
-            self.player_y = min(self.player.height, self.player.y + (self.speed * dt_scale))
+        # if any(key in self.keys_pressed for key in self.DOWN_KEYS):
+        #     self.player.y = min(self.player.height, self.player.y + (self.player.speed * dt_scale))
 
         # Jumping border effect and physics
         if any(key in self.keys_pressed for key in self.JUMP_KEYS) and self.is_on_ground:
@@ -356,6 +354,7 @@ class GameWidget(AsyncWidget):
         # Vertical physics
         self.player.velocity_y += self.gravity * dt_scale  # Slightly increase gravity over time for a more dynamic feel
         self.player.velocity_y = min(self.player.velocity_y, 15)  # Terminal velocity to prevent excessive falling speed
+        self.player.previous_y = self.player.y  # Store previous Y position for better collision detection
         self.player.y += self.player.velocity_y * dt_scale  # Apply velocity to position, with a small boost for responsiveness
 
         self.is_on_ground = False 
@@ -367,30 +366,35 @@ class GameWidget(AsyncWidget):
                 for platform in row:
                     platform.collide_y(self.player)
 
+        self.move_x = 0
+
         # LEFT movement
         if any(key in self.keys_pressed for key in self.LEFT_KEYS):
             self.player.facing = "left"
-            self.player.x -= self.speed * dt_scale
+            self.move_x -= self.player.speed
 
         # RIGHT movement
         if any(key in self.keys_pressed for key in self.RIGHT_KEYS):
             self.player.facing = "right"
-            self.player.x += self.speed * dt_scale
+            self.move_x += self.player.speed
+
+        self.player.x += self.move_x * dt_scale
  
         for chunk in self.terrain.chunks:
             if not self.terrain.chunk_rendered(chunk):
                 continue
             for row in chunk:
                 for platform in row:
-                    platform.collide_x(self.player)
+                    if platform.collide_x(self.player):
+                        break
 
         if Qt.Key.Key_Shift in self.keys_pressed:
             self.setBorder("gray", 4)
         
         if Qt.Key.Key_Shift in self.keys_pressed:
-            self.speed = 10
+            self.player.speed = 10
         else:
-            self.speed = 5
+            self.player.speed = 5
 
     def resume_game(self):
         if not self.is_paused:
