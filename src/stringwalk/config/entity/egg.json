@@ -2,6 +2,9 @@
     "name": "Egg",
     "icon": "egg.png",
     "quantity": 10,
+    "spawn_range_x": [0, 8000],
+    "spawn_range_y": [0, 150],
+    "animated": false,
     "properties": {
         "mass": 0.8
     }

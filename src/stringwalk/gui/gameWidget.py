@@ -265,9 +265,11 @@ class GameWidget(AsyncWidget):
             width=64,
             height=64,
             image_path=f"{self.project_dir}/assets/sprites/{data['icon']}",
+            animated=data.get("animated", False),
             game_widget=self,
-            mass=props.get("mass", 1.0),
-            quantity=props.get("quantity", 1)
+            mass=props.get("mass"),
+            quantity=props.get("quantity"),
+            data=data
         )
 
     def setup_entities(self):
@@ -275,8 +277,17 @@ class GameWidget(AsyncWidget):
             quantity = data.get("quantity", 1)
 
             for _ in range(quantity):
-                random_x = random.randint(0, 5000)
-                random_y = random.randint(0, 300)
+                range_x = data.get("spawn_range_x", [0, 5000])
+                range_y = data.get("spawn_range_y", [0, 5000])
+
+                random_x = random.randint(range_x[0], range_x[1])
+
+                if isinstance(range_y, int):
+                    random_y = range_y
+                elif isinstance(range_y, list) and len(range_y) == 1:
+                    random_y = range_y[0]
+                elif isinstance(range_y, list) and len(range_y) >= 2:
+                    random_y = random.randint(range_y[0], range_y[1])
 
                 obj = self.build_entity(key, data, random_x, random_y)
                 self.entities.append(obj)
