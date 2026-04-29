@@ -1,4 +1,8 @@
 {
     "name": "Egg",
-    "icon": "egg.png"
+    "icon": "egg.png",
+    "quantity": 10,
+    "properties": {
+        "mass": 0.8
+    }
 }

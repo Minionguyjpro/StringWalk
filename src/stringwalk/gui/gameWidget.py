@@ -10,7 +10,7 @@ from ..utility.graphics.Camera import Camera
 from ..utility.graphics.Terrain import Terrain, get_ground_height
 from ..utility.object.Player import Player
 from ..utility.object.Entity import Entity
-from ..utility.object.objectParser import getFilenamesJson
+from ..utility.object.objectParser import getObjects
 from ..utility.ui.Overlay import Overlay
 from ..utility.gameHandler import generate_platform
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen, QLinearGradient, QPixmap
@@ -51,9 +51,9 @@ class GameWidget(AsyncWidget):
         self.entities = []
         self.platforms = []
         self.project_dir = getProjectDir()
-        self.entity_data = getFilenamesJson(f"{self.project_dir}/config/entity")
-
-        # Physics
+        self.entity_data = getObjects().entities()
+        print(f"Loaded entity data: {self.entity_data}")
+        
         self.gravity = 0.25
         self.jump_velocity = -14.0
 
@@ -256,27 +256,30 @@ class GameWidget(AsyncWidget):
 
         painter.end()
 
+    def build_entity(self, key, data, x, y):
+        props = data.get("properties", {})
+
+        return Entity(
+            x=x,
+            y=y,
+            width=64,
+            height=64,
+            image_path=f"{self.project_dir}/assets/sprites/{data['icon']}",
+            game_widget=self,
+            mass=props.get("mass", 1.0),
+            quantity=props.get("quantity", 1)
+        )
+
     def setup_entities(self):
-        for data in self.entity_data:
-            entity_size = 64
+        for key, data in self.entity_data.items():
+            quantity = data.get("quantity", 1)
 
-            ground_y = self.terrain.get_surface_y(self.player.x)
+            for _ in range(quantity):
+                random_x = random.randint(0, 5000)
+                random_y = random.randint(0, 300)
 
-            random_x = self.player.x - 400 + random.randint(0, 800)
-            random_y = ground_y - entity_size 
-
-            image_path = f"{self.project_dir}/assets/sprites/{data}.png"
-            print(image_path)
-
-            obj = Entity(
-                x=0,
-                y=random_y,
-                width=entity_size,
-                height=entity_size,
-                image_path=image_path,
-                game_widget=self
-            )
-            self.entities.append(obj)
+                obj = self.build_entity(key, data, random_x, random_y)
+                self.entities.append(obj)
 
     def setBorder(self, color: str, size: int):
         self.border_color = QColor(color)
@@ -366,6 +369,10 @@ class GameWidget(AsyncWidget):
         if self.player.is_on_ground:
             self.player.velocity_y = self.jump_velocity
             self.player.is_on_ground = False
+        for entities in self.entities:
+            if entities.is_on_ground:
+                entities.velocity_y = self.jump_velocity
+                entities.is_on_ground = False
 
     def handle_movement(self, delta_time=1 / 60):
         # Scale per-frame values so gameplay speed stays consistent across FPS values.
@@ -401,7 +408,7 @@ class GameWidget(AsyncWidget):
         self.apply_physics(self.player, dt_scale)
         self.terrain.check_collision(self.player)
 
-        self.player.x += self.player.velocity_x * dt_scale
+        self.player.x += (self.player.velocity_x * dt_scale)
         self.terrain.check_collision(self.player)
 
         self.init_world()
@@ -438,10 +445,12 @@ class GameWidget(AsyncWidget):
         return abs(entity.x - self.player.x) < distance
 
     def apply_physics(self, entity, dt_scale):
+        # Remember previous position so collision resolution can revert movement when needed
+        entity.previous_x = entity.x
         entity.previous_y = entity.y
 
         if not entity.is_on_ground:
-            entity.velocity_y += self.gravity * dt_scale
+            entity.velocity_y += self.gravity * entity.mass * dt_scale
             entity.velocity_y = min(entity.velocity_y, 15)
 
         entity.y += entity.velocity_y * dt_scale

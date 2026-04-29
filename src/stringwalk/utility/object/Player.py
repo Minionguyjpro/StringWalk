@@ -14,3 +14,4 @@ class Player:
     velocity_y: int = 0
     facing: str = "right"
     is_on_ground: bool = True
+    mass: float = 1.0

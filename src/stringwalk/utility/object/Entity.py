@@ -3,7 +3,17 @@ from dataclasses import dataclass
 
 
 class Entity:
-    def __init__(self, x, y, width, height, image_path, game_widget):
+    def __init__(
+        self,
+        x,
+        y,
+        width,
+        height,
+        image_path,
+        mass,
+        quantity,
+        game_widget
+    ):
         self.x = x
         self.y = y
         self.name = "Entity"
@@ -14,6 +24,8 @@ class Entity:
         self.image = QPixmap(image_path)
         self.is_on_ground = True
         self.game_widget = game_widget
+        self.mass = mass
+        self.quantity = quantity
 
     def update(self, painter):
         painter.drawPixmap(

@@ -6,7 +6,7 @@ import random
 
 
 SCALE = 1
-BASE_RENDER_DISTANCE = 5
+BASE_RENDER_DISTANCE = 2
 WORLD_HEIGHT = 20
 
 def get_terrain_height(x):
@@ -92,7 +92,9 @@ class Terrain:
         if chunk and world_x in chunk:
             return chunk[world_x]
 
-        return get_chunk_height(world_x)
+        # ensure consistent chunk-based fallback
+        units = get_chunk_height(chunk_x)
+        return units * self.tile_size
 
     def get_tile(self, world_x, world_y):
         return "dirt" if world_y >= self.get_surface_y(world_x) else "sky"
@@ -115,7 +117,8 @@ class Terrain:
 
         for x in range(self.chunk_size):
             world_x = world_chunk_start_x + x * self.tile_size
-            surface_y = get_chunk_height(world_x)
+            units = get_chunk_height(chunk_x)               # seed by chunk_x, not world_x
+            surface_y = units * self.tile_size              # convert to pixels
             chunk[world_x] = surface_y
             self.column_heights[world_x] = surface_y
 
@@ -124,20 +127,63 @@ class Terrain:
     def check_collision(self, entity):
         entity.is_on_ground = False
 
-        surface_y = max(
-            self.get_surface_y(entity.x),
-            self.get_surface_y(entity.x + entity.width / 2),
-            self.get_surface_y(entity.x + entity.width - 1),
-        )
+        # Save previous position (needed for X correction)
+        entity.previous_x = entity.x
+        entity.previous_y = entity.y
 
-        if entity.y + entity.height >= surface_y:
+        # =========================
+        # 1. Y AXIS (GROUND COLLISION)
+        # =========================
+
+        # ONLY use center X for ground detection
+        ground_x = entity.x + entity.width / 2
+        surface_y = self.get_surface_y(ground_x)
+
+        entity_bottom = entity.y + entity.height
+
+        if entity_bottom >= surface_y:
             entity.y = surface_y - entity.height
+
             if entity.velocity_y > 0:
                 entity.velocity_y = 0
+
             entity.is_on_ground = True
 
+        # =========================
+        # 2. X AXIS (WALL COLLISION)
+        # =========================
+
+        # Check movement direction
+        if entity.velocity_x != 0:
+            step = 1 if entity.velocity_x > 0 else -1
+
+            next_x = entity.x + entity.velocity_x
+
+            sample_ys = [
+                entity.y + 1,
+                entity.y + entity.height / 2,
+                entity.y + entity.height - 1
+            ]
+
+            collision = False
+
+            for y in sample_ys:
+                if self.is_solid_at(next_x + (entity.width if step > 0 else 0), y):
+                    collision = True
+                    break
+
+            if collision:
+                # move back until just before collision
+                while not any(
+                    self.is_solid_at(entity.x + step + (entity.width if step > 0 else 0), y)
+                    for y in sample_ys
+                ):
+                    entity.x += step
+
+                entity.velocity_x = 0
 def get_ground_height(x):
     return get_chunk_height(x)
 
 def get_chunk_height(chunk_x):
-    return random.Random(chunk_x).randint(0, 0)
+    # return a small number of tiles (not pixels) so we multiply by tile_size where used
+    return random.Random(chunk_x).randint(1, 6)
