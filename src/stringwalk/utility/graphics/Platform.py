@@ -1,5 +1,6 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtGui import QPainter, QColor, QPixmap
+from ..data.projectNameHandler import getProjectDir
 
 
 class Platform:
@@ -12,14 +13,14 @@ class Platform:
         self.color = QColor(color) if isinstance(color, str) else color
         self.game_widget = game_widget
         self.properties = properties
+        
+        project_dir = getProjectDir()
+        image_path = f"{project_dir}/assets/sprites/{tile_id}.png"
 
-    def update(self, painter):
-        if self.tile_id == "sky_tile":
+        if self.tile_id == "sky":
             return
 
-        # if self.tile_id == "ground_tile":
-        #     return
-
+    def update(self, painter):
         painter.fillRect(
             self.x - self.game_widget.camera.x,
             self.y - self.game_widget.camera.y,

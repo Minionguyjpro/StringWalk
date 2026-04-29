@@ -7,7 +7,7 @@ from ..utility.graphics.screenHandler import captureWidget
 from ..utility.configHandler import readConfigItem
 from ..utility.io.keyManager import load_bindings
 from ..utility.graphics.Camera import Camera
-from ..utility.graphics.Terrain import Terrain
+from ..utility.graphics.Terrain import Terrain, get_ground_height
 from ..utility.object.Player import Player
 from ..utility.object.Entity import Entity
 from ..utility.object.objectParser import getFilenamesJson
@@ -49,9 +49,9 @@ class GameWidget(AsyncWidget):
         self.background.setColorAt(1, QColor("#000080"))
 
         self.entities = []
+        self.platforms = []
         self.project_dir = getProjectDir()
         self.entity_data = getFilenamesJson(f"{self.project_dir}/config/entity")
-        self.platforms = []
 
         # Physics
         self.gravity = 0.25
@@ -92,6 +92,10 @@ class GameWidget(AsyncWidget):
                 "latency": "Latency"
         }
 
+        self._loaded_chunk_center = None
+
+        self.init_world()
+        self.resolve_spawn_position()
         self.setup_entities()
 
         asyncio.create_task(self._load_bindings())
@@ -191,10 +195,28 @@ class GameWidget(AsyncWidget):
         self.activateWindow()
         self.setFocus()
 
+    def init_world(self):
+        player_chunk = self.terrain.world_to_chunk(self.player.x)
+
+        if self._loaded_chunk_center == player_chunk:
+            return
+
+        self._loaded_chunk_center = player_chunk
+
+        for cx in range(player_chunk - self.terrain.render_distance,
+                        player_chunk + self.terrain.render_distance + 1):
+            self.terrain.add_chunk(cx)
+
+    def resolve_spawn_position(self):
+        x = self.player.x
+
+        for y in range(-200, 200):
+            if self.terrain.is_solid_at(x, y):
+                self.player.y = self.terrain.get_surface_y(x) - self.player.height
+                self.player.is_on_ground = False
+                return
+
     def paintEvent(self, event):
-        for x in range(-self.terrain.render_distance, self.terrain.render_distance):
-            nx = self.player.x + x * self.terrain.chunk_size * self.terrain.tile_size
-            self.terrain.add_chunk(nx)
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -238,8 +260,10 @@ class GameWidget(AsyncWidget):
         for data in self.entity_data:
             entity_size = 64
 
+            ground_y = self.terrain.get_surface_y(self.player.x)
+
             random_x = self.player.x - 400 + random.randint(0, 800)
-            random_y = self.terrain.y_standard - entity_size 
+            random_y = ground_y - entity_size 
 
             image_path = f"{self.project_dir}/assets/sprites/{data}.png"
             print(image_path)
@@ -347,38 +371,21 @@ class GameWidget(AsyncWidget):
         # Scale per-frame values so gameplay speed stays consistent across FPS values.
         dt_scale = delta_time * 60
 
-        # if any(key in self.keys_pressed for key in self.DOWN_KEYS):
-        #     self.player.y = min(self.player.height, self.player.y + (self.player.speed * dt_scale))
-
         # Jumping border effect and physics
         jumping = any(key in self.keys_pressed for key in self.JUMP_KEYS)
         
         if jumping:
             self._do_jump()
 
-        # Vertical physics
-        self.player.velocity_y += self.gravity * dt_scale  # Slightly increase gravity over time for a more dynamic feel
-        self.player.velocity_y = min(self.player.velocity_y, 15)  # Terminal velocity to prevent excessive falling speed
-        self.player.previous_y = self.player.y  # Store previous Y position for better collision detection
-        self.player.y += self.player.velocity_y * dt_scale  # Apply velocity to position, with a small boost for responsiveness
+        self.player.is_on_ground = False  # Will be set to True if collision with ground is detected later
 
         for entity in self.entities:
-            entity.velocity_y += self.gravity * dt_scale
-            entity.previous_y = entity.y
-            entity.y += entity.velocity_y * dt_scale
+            entity.is_on_ground = False  # Will be set to True if collision with ground is detected later
 
-        self.player.is_on_ground = False 
+        self.player.velocity_x = 0
 
-        for chunk in self.terrain.chunks:
-            if not self.terrain.chunk_rendered(chunk):
-                continue
-            for row in chunk:
-                for platform in row:
-                    platform.collide_y(self.player)
-                    for entity in self.entities:
-                        platform.collide_y(entity)
-
-        self.player.velocity_x = 0  # Reset horizontal velocity each frame, will be set based on input below
+        # if any(key in self.keys_pressed for key in self.DOWN_KEYS):
+        #     self.player.y = min(self.player.height, self.player.y + (self.player.speed * dt_scale))
 
         # LEFT movement
         if any(key in self.keys_pressed for key in self.LEFT_KEYS):
@@ -390,17 +397,22 @@ class GameWidget(AsyncWidget):
             self.player.facing = "right"
             self.player.velocity_x += self.player.speed
 
+        # Vertical physics
+        self.apply_physics(self.player, dt_scale)
+        self.terrain.check_collision(self.player)
+
         self.player.x += self.player.velocity_x * dt_scale
- 
-        for chunk in self.terrain.chunks:
-            if not self.terrain.chunk_rendered(chunk):
+        self.terrain.check_collision(self.player)
+
+        self.init_world()
+
+        for entity in self.entities:
+            if not self.should_simulate(entity):
                 continue
-            for row in chunk:
-                for platform in row:
-                    platform.collide_x(self.player)
-                    for entity in self.entities:
-                        platform.collide_x(entity)
-    
+
+            self.apply_physics(entity, dt_scale)
+            self.terrain.check_collision(entity)
+
         if jumping:
             self.setBorder("#dddda0", 6)
         elif Qt.Key.Key_Shift in self.keys_pressed:
@@ -408,10 +420,31 @@ class GameWidget(AsyncWidget):
         else:
             self.setBorder("", 0)
         
-        if Qt.Key.Key_Shift in self.keys_pressed:
-            self.player.speed = 10
-        else:
-            self.player.speed = 5
+        self.player.speed = 10 if Qt.Key.Key_Shift in self.keys_pressed else 5
+
+    def should_simulate(self, entity):
+        return self.is_on_screen(entity) or self.is_near_player(entity)
+
+    def is_on_screen(self, entity, margin=200):
+        screen_x = entity.x - self.camera.x
+        screen_y = entity.y - self.camera.y
+
+        return (
+            -margin <= screen_x <= self.width() + margin and
+            -margin <= screen_y <= self.height() + margin
+        )
+
+    def is_near_player(self, entity, distance=1500):
+        return abs(entity.x - self.player.x) < distance
+
+    def apply_physics(self, entity, dt_scale):
+        entity.previous_y = entity.y
+
+        if not entity.is_on_ground:
+            entity.velocity_y += self.gravity * dt_scale
+            entity.velocity_y = min(entity.velocity_y, 15)
+
+        entity.y += entity.velocity_y * dt_scale
 
     def resume_game(self):
         if not self.is_paused:
