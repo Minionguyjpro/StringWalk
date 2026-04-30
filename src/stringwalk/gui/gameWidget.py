@@ -332,6 +332,7 @@ class GameWidget(AsyncWidget):
                 await asyncio.sleep(1)
 
             config_fps_str = await readConfigItem("current_fps")
+            print(config_fps_str)
 
             await asyncio.sleep(1/config_fps_str if config_fps_str.isdigit() and int(config_fps_str) > 0 else 1/60)
 
