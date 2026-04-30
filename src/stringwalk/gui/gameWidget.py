@@ -11,6 +11,7 @@ from ..utility.graphics.Terrain import Terrain, get_ground_height
 from ..utility.object.Player import Player
 from ..utility.object.Entity import Entity
 from ..utility.object.objectParser import getObjects
+from ..network.lobbyManager import lobby_manager
 from ..utility.ui.Overlay import Overlay
 from ..utility.gameHandler import generate_platform
 from PyQt6.QtGui import QPainter, QColor, QKeyEvent, QPen, QLinearGradient, QPixmap
@@ -36,7 +37,12 @@ class GameWidget(AsyncWidget):
         # Game state
         self.is_paused = False
 
-        self.player = player
+        self.players = []
+        self.player = Player()
+        self.players.append(self.player)
+
+        self.remote_players = {}
+
         self.camera = Camera(self)
         self.terrain = Terrain(player=self.player, game_widget=self)
         self.overlay = Overlay(self)
@@ -94,9 +100,13 @@ class GameWidget(AsyncWidget):
 
         self._loaded_chunk_center = None
 
+        self.network_task = asyncio.create_task(self.network_loop())
+
         self.init_world()
         self.resolve_spawn_position()
         self.setup_entities()
+
+        lobby_manager.game_widget = self  # Provide reference to this game widget for lobby manager to call update on when receiving data
 
         asyncio.create_task(self._load_bindings())
         asyncio.create_task(self._load_overlay())
@@ -246,13 +256,28 @@ class GameWidget(AsyncWidget):
             pen = QPen(self.player.color.darker(), 4)
 
         painter.setPen(pen)
-        painter.setBrush(self.player.color)
-        painter.drawEllipse(
-            player_x,
-            player_y,
-            self.player.width,
-            self.player.height
-        )
+
+        for p in self.players:
+            painter.setBrush(p.color)
+            painter.setPen(Qt.PenStyle.NoPen)
+
+            painter.drawEllipse(
+                int(p.x - self.camera.x),
+                int(p.y - self.camera.y),
+                p.width,
+                p.height
+            )
+
+        for p in self.remote_players.values():
+            painter.setBrush(p.color)
+            painter.setPen(Qt.PenStyle.NoPen)
+
+            painter.drawEllipse(
+                int(p.x - self.camera.x),
+                int(p.y - self.camera.y),
+                p.width,
+                p.height
+            )
 
         painter.end()
 
@@ -291,6 +316,41 @@ class GameWidget(AsyncWidget):
 
                 obj = self.build_entity(key, data, random_x, random_y)
                 self.entities.append(obj)
+
+    async def network_loop(self):
+        while True:
+            try:
+                await lobby_manager.send({
+                    "id": "player1",
+                    "x": self.player.x,
+                    "y": self.player.y,
+                    "vx": self.player.velocity_x,
+                    "vy": self.player.velocity_y
+                })
+            except Exception as e:
+                print("Lobby connection lost:", e)
+                await asyncio.sleep(1)
+
+            config_fps_str = await readConfigItem("current_fps")
+
+            await asyncio.sleep(1/config_fps_str if config_fps_str.isdigit() and int(config_fps_str) > 0 else 1/60)
+
+    def set_remote_player(self, player_id, x, y, vx=0, vy=0, dt=1/60):
+        if player_id not in self.remote_players:
+            p = Player()
+            p.color = QColor("red")
+            self.remote_players[player_id] = p
+
+        p = self.remote_players[player_id]
+
+        # smooth position correction
+        alpha = 1 - pow(0.001, dt * 60)  # Smoothing factor based on delta time
+        p.x += (x - p.x) * alpha
+        p.y += (y - p.y) * alpha
+
+        # optional: apply velocity for prediction feel
+        p.x += vx * 0.1
+        p.y += vy * 0.1
 
     def setBorder(self, color: str, size: int):
         self.border_color = QColor(color)

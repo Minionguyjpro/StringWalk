@@ -15,3 +15,5 @@ class Player:
     facing: str = "right"
     is_on_ground: bool = True
     mass: float = 1.0
+
+player = Player()

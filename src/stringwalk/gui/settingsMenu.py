@@ -40,63 +40,67 @@ def createSettingsMenu(navigate, parent=None, background=None) -> QWidget:
         def __texts_loaded(self, task):
             texts = task.result()
 
-            actions = [
-                lambda w=None: self.navigate(
-                    __import__(
-                        f"{getProjectNameLower()}.gui.settings.langSelect",
-                        fromlist=["createlangSelect"]
-                    ).createlangSelect,
-                    parent=self.parent_window,
-                    background=self.background
+            items = [
+                (
+                    texts[0],
+                    lambda w=None: self.navigate(
+                        __import__(
+                            f"{getProjectNameLower()}.gui.settings.langSelect",
+                            fromlist=["createlangSelect"]
+                        ).createlangSelect,
+                        parent=self.parent_window,
+                        background=self.background
+                    )
                 ),
-                lambda w=None: self.navigate(
-                    __import__(
-                        f"{getProjectNameLower()}.gui.settings.resolutionSelect",
-                        fromlist=["createresolutionSelect"]
-                    ).createresolutionSelect,
-                    parent=self.parent_window,
-                    background=self.background
+                (
+                    texts[1],
+                    lambda w=None: self.navigate(
+                        __import__(
+                            f"{getProjectNameLower()}.gui.settings.resolutionSelect",
+                            fromlist=["createresolutionSelect"]
+                        ).createresolutionSelect,
+                        parent=self.parent_window,
+                        background=self.background
+                    )
                 ),
-                lambda w=None: self.navigate(
-                    __import__(
-                        f"{getProjectNameLower()}.gui.settings.fpsSelect",
-                        fromlist=["createfpsSelect"]
-                    ).createfpsSelect,
-                    parent=self.parent_window,
-                    background=self.background
+                (
+                    texts[2],
+                    lambda w=None: self.navigate(
+                        __import__(
+                            f"{getProjectNameLower()}.gui.settings.fpsSelect",
+                            fromlist=["createfpsSelect"]
+                        ).createfpsSelect,
+                        parent=self.parent_window,
+                        background=self.background
+                    )
                 ),
-                lambda w=None: self.navigate(
-                    lambda nav, parent=None, background=None: __import__(
-                        f"{getProjectNameLower()}.gui.hotkeyMenu",
-                        fromlist=["createHotkeyMenu"]
-                    ).createHotkeyMenu(nav, parent, self.hotkeys, background),
-                    parent=self.parent_window,
-                    background=self.background
+                (
+                    texts[3],
+                    lambda w=None: self.navigate(
+                        lambda nav, parent=None, background=None: __import__(
+                            f"{getProjectNameLower()}.gui.hotkeyMenu",
+                            fromlist=["createHotkeyMenu"]
+                        ).createHotkeyMenu(nav, parent, self.hotkeys, background),
+                        parent=self.parent_window,
+                        background=self.background
+                    )
                 ),
-                lambda w=None: self.navigate(
-                    __import__(
-                        f"{getProjectNameLower()}.gui.mainMenu",
-                        fromlist=["createMainMenu"]
-                    ).createMainMenu,
-                    parent=self.parent_window,
-                    background=self.background
-                )
+                (
+                    texts[4],
+                    lambda w=None: self.navigate(
+                        __import__(
+                            f"{getProjectNameLower()}.gui.mainMenu",
+                            fromlist=["createMainMenu"]
+                        ).createMainMenu,
+                        parent=self.parent_window,
+                        background=self.background
+                    )
+                ),
             ]
 
-            # Clear old widgets first
-            for i in reversed(range(self.layout_ref.count())):
-                item = self.layout_ref.itemAt(i)
-                widget = item.widget()
-                if widget:
-                    widget.setParent(None)
-
-            # Add new buttons
-            for text, action in zip(texts, actions):
+            for text, action in items:
                 btn = QPushButton(text)
                 btn.clicked.connect(action)
                 addMenuWidget(self.layout_ref, btn)
-
-            self.layout_ref.addStretch()
-            finalizeMenuLayout(self)
 
     return SettingsMenu(navigate, parent=parent, background=background)

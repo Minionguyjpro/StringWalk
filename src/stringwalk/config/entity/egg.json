@@ -1,8 +1,8 @@
 {
     "name": "Egg",
     "icon": "egg.png",
-    "quantity": 10,
-    "spawn_range_x": [0, 8000],
+    "quantity": 25,
+    "spawn_range_x": [500, 10000],
     "spawn_range_y": [0, 150],
     "animated": false,
     "properties": {

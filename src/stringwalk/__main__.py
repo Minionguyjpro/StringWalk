@@ -7,7 +7,9 @@ from .utility.ui.qssProcessor import applyGlobalStyles
 from .utility.data.projectNameHandler import getProjectName, getProjectNameLower, getProjectDir
 from .utility.ui.resolutionHandler import getResolution, centerWindow, lockWindowSize
 from .utility.video.videoManager import VideoManager
+from .gui.gameWidget import GameWidget
 from .gui.mainMenu import createMainMenu
+from .gui.lobbyMenu import createLobbyMenu
 import asyncio
 import os
 import sys
@@ -90,7 +92,11 @@ def gameExec():
             
             if key not in self.menu_widgets:
                 # Create new menu if not cached
-                widget = factory(self.navigate, parent=parent, background=background)
+                widget = factory(
+                    self.navigate,
+                    parent=self,
+                    background=background
+                )
                 self.menu_layout.addWidget(widget)
                 self.menu_widgets[key] = widget
             else:
@@ -144,6 +150,20 @@ def gameExec():
                 self.pause_background = None
 
             self.menu_container.raise_()
+
+        def start_game_from_lobby(self):
+            game = GameWidget(
+                parent=self.central_container,
+                on_exit=self.return_to_menu
+            )
+
+            self.menu_container.hide()
+            self.game_widget = game
+
+            game.setGeometry(self.central_container.rect())
+            game.show()
+            game.setFocus()
+            
     async def setup() -> MainWindow:
         res = await getResolution()
     

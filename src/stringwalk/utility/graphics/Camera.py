@@ -13,15 +13,20 @@ class Camera:
         self.offset_delay = 30 / 240 # Number of frames to delay the offset
         self.top_margin = 150.0 # Margin to keep above the player
         self.fps = 60
-
-        self.player = player
         
         self.width = 0
         self.height = 0
-        
+
+    @property
+    def player(self):
+        return self.game_widget.player
+
     def update(self, delta_time):
-        asyncio.create_task(self._load_dimensions())
-        asyncio.create_task(self._load_fps(delta_time))
+        self.width = self.game_widget.width()
+        self.height = self.game_widget.height()
+        self.fps = self.game_widget.target_fps
+        self.offset_delay = 30 * delta_time if self.fps else 30 / 240
+        
         self._update_camera(delta_time)
 
     def _update_world_offset(self):

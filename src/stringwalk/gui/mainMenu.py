@@ -9,7 +9,8 @@ from ..utility.audio.audioManager import audio
 from ..utility.graphics.screenHandler import captureWidget, blur_pixmap
 from ..utility.data.projectNameHandler import getProjectNameLower
 from ..utility.ui.buttonHandler import reloadButton
-from ..gui.gameWidget import GameWidget
+from .gameWidget import GameWidget
+from .lobbyMenu import createLobbyMenu
 
 
 def createMainMenu(navigate, parent=None, background=None) -> QWidget:
@@ -33,10 +34,14 @@ def createMainMenu(navigate, parent=None, background=None) -> QWidget:
 
             # Main layout
             outer, inner = makeMenuLayout()
-            self.keys = ["start", "settings", "exit", "sound"]
+            self.keys = ["start", "start_multiplayer", "settings", "exit", "sound"]
             self.layout_ref = inner
 
+            self.parent_container = getattr(self.parent_window, "central_container", self.parent_window)
+
             self.pause_background = None
+
+            self.sound_btn = None
 
             lobbyMusic = "music", "lobby.mp3"
             playSound(*lobbyMusic)
@@ -55,71 +60,88 @@ def createMainMenu(navigate, parent=None, background=None) -> QWidget:
             self.run_task(getText(keys), self.__texts_loaded)
 
         def __texts_loaded(self, task):
-            texts = task.result()
+            try:
+                texts = task.result()
+            except Exception as e:
+                print("Text loading failed:", e)
+                return
 
-            keys = self.keys.copy()
+            def safe_text(i):
+                return texts[i] if i < len(texts) else ""
 
-            if getattr(self.parent_window, "pause_background", None):
-                keys.insert(0, "resume")  # Add "resume" at the beginning if paused
-            
-            sound_btn = None  # Will store reference to sound button
-
-            def toggle_mute(_=None):
-                toggleSound(lobbyMusic[0], lobbyMusic[1])
-                # Update button visual state after toggle
-                if sound_btn:
-                    if not audio.music_muted:
-                        sound_btn.setProperty("variant", "sound")
-                    else:
-                        sound_btn.setProperty("variant", "mute")
-                    reloadButton(sound_btn)
-
-            actions = []
+            items = []
 
             if getattr(self.parent_window, "pause_background", None):
-                actions.append(lambda w=None: self.resume_game())  # Resume action
+                items.append(("resume", safe_text(0), self.resume_game))
+                offset = 1
+            else:
+                items.append(("start", safe_text(0), self.start_game))
+                items.append(("start_multiplayer", safe_text(1), self.start_game_multiplayer))
+                offset = 2
 
-            actions += [
-                lambda w=None: self.start_game(),
-                lambda w=None: self.navigate(
-                    __import__(
-                        f"{getProjectNameLower()}.gui.settingsMenu",
-                        fromlist=["createSettingsMenu"]
-                    ).createSettingsMenu,
-                    key="SettingsMenu",
-                    parent=self.parent_window,
-                    background=getattr(self.parent_window, "pause_background", None) or self.background
-                ),
-                lambda w=None: QApplication.quit(),
-                toggle_mute
+            items += [
+                ("settings", safe_text(offset), self.open_settings),
+                ("exit", safe_text(offset + 1), QApplication.quit),
             ]
 
-            # Clear old widgets first
-            for i in reversed(range(self.layout_ref.count())):
-                item = self.layout_ref.itemAt(i)
-                widget = item.widget()
-                if widget:
-                    widget.setParent(None)
+            items.append(("sound", safe_text(offset + 2), self.toggle_mute))
 
-            # Add buttons
-            for key, text, action in zip(keys, texts, actions):
+            # CLEAR UI
+            for i in reversed(range(self.layout_ref.count())):
+                w = self.layout_ref.itemAt(i).widget()
+                if w:
+                    w.setParent(None)
+
+            # BUILD UI
+            for key, text, action in items:
                 btn = QPushButton(text)
                 btn.clicked.connect(action)
                 addMenuWidget(self.layout_ref, btn)
 
                 if key == "sound":
-                    sound_btn = btn  # Store reference
-                    if not audio.music_muted:
-                        btn.setProperty("variant", "sound")
-                    else:
-                        btn.setProperty("variant", "mute")
-
-                    reloadButton(btn)  # Apply the new property to update the style
+                    self.sound_btn = btn
+                    btn.setProperty("variant", "sound" if not audio.music_muted else "mute")
+                    reloadButton(btn)
 
             self.layout_ref.addStretch()
             finalizeMenuLayout(self)
 
+        def open_settings(self, _=None):
+            self.navigate(
+                __import__(
+                    f"{getProjectNameLower()}.gui.settingsMenu",
+                    fromlist=["createSettingsMenu"]
+                ).createSettingsMenu,
+                key="SettingsMenu",
+                parent=self.parent_window,
+                background=getattr(self.parent_window, "pause_background", None) or self.background
+            )
+
+        def toggle_mute(self, _=None):
+            toggleSound(lobbyMusic[0], lobbyMusic[1])
+            if self.sound_btn:
+                self.sound_btn.setProperty(
+                    "variant",
+                    "sound" if not audio.music_muted else "mute"
+                )
+                reloadButton(self.sound_btn)
+
         def start_game(self):
+            game = self._start_game(
+                GameWidget(
+                    parent=self.parent_container,
+                    on_exit=self.return_to_menu
+                )
+            )
+
+        def start_game_multiplayer(self):
+            self.navigate(
+                createLobbyMenu,
+                parent=self.parent_window,
+                background=getattr(self.parent_window, "pause_background", None) or self.background
+            )
+
+        def _start_game(self, widget_obj, clear_background=True):
             if not self.parent_window:
                 print("Error: parent_window is None! Cannot start game.")
                 return
@@ -137,18 +159,16 @@ def createMainMenu(navigate, parent=None, background=None) -> QWidget:
 
             # Launch the game
             parent_container = getattr(self.parent_window, "central_container", self.parent_window)
-            
-            self.parent_window.game_widget = GameWidget(
-                parent=parent_container,
-                on_exit=self.return_to_menu
-            )
+
+            self.parent_window.mode = "game" if isinstance(widget_obj, GameWidget) else "lobby"
+
+            self.parent_window.game_widget = widget_obj
+            widget_obj.mode = "game" if isinstance(widget_obj, GameWidget) else "lobby"
 
             self.parent_window.game_widget.setGeometry(parent_container.rect())
             self.parent_window.game_widget.show()
             self.parent_window.game_widget.raise_()
-            self.parent_window.game_widget.setFocus()
-
-            self.parent_window.pause_background = None  # Clear pause background when starting game
+            self.parent_window.game_widget.setFocus()     
 
         def resume_game(self):
             game = getattr(self.parent_window, "game_widget", None)
@@ -164,11 +184,23 @@ def createMainMenu(navigate, parent=None, background=None) -> QWidget:
             parent_container = getattr(self.parent_window, "central_container", self.parent_window)
             game.setGeometry(parent_container.rect())
 
+            if getattr(game, "mode", None) == "lobby":
+                self.parent_window.pause_background = None  # Clear pause background when resuming lobby
+
             game.resume_game()
 
             QTimer.singleShot(0, game.setFocus)
 
-            self.parent_window.pause_background = None  # Clear pause background when resuming
+        def open_settings(self, _=None):
+            self.navigate(
+                __import__(
+                    f"{getProjectNameLower()}.gui.settingsMenu",
+                    fromlist=["createSettingsMenu"]
+                ).createSettingsMenu,
+                key="SettingsMenu",
+                parent=self.parent_window,
+                background=getattr(self.parent_window, "pause_background", None) or self.background
+            )
 
         def return_to_menu(self, pixmap=None):
             # Show menu container again when exiting game
