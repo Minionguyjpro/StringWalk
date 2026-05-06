@@ -1,5 +1,6 @@
 from ..configHandler import readConfigItem
 from PyQt6.QtWidgets import QApplication
+import os
 
 
 async def getResolution() -> str:
@@ -49,14 +50,15 @@ def centerWindow(window):
     """
     Center a top-level window on its screen (DPI-safe)
     """
-    screen = window.screen() or QApplication.primaryScreen()
-    screen_geo = screen.availableGeometry()  # logical pixels
-    win_geo = window.frameGeometry()         # logical pixels
+    if os.name != "nt" and os.name != "darwin":
+        screen = window.screen() or QApplication.primaryScreen()
+        screen_geo = screen.availableGeometry()  # logical pixels
+        win_geo = window.frameGeometry()         # logical pixels
 
-    x = screen_geo.x() + (screen_geo.width() // 2 - win_geo.width()) // 2
-    y = screen_geo.y() + (screen_geo.height() // 2 - win_geo.height()) // 2
+        x = screen_geo.x() + (screen_geo.width() // 2 - win_geo.width()) // 2
+        y = screen_geo.y() + (screen_geo.height() // 2 - win_geo.height()) // 2
 
-    window.move(x, y)
+        window.move(x, y)
 
 def lockWindowSize(window, width, height):
     """
