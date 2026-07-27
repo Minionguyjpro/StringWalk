@@ -16,7 +16,8 @@ class Entity:
         animation_type=None,
         frame_speed=0.1,
         game_widget=None,
-        data=None
+        data=None,
+        type=None
     ):
         self.x = x
         self.y = y
@@ -30,6 +31,8 @@ class Entity:
         self.mass = mass
         self.quantity = quantity
         self.game_widget = game_widget
+
+        self.type = type
 
         self.is_on_ground = True
 

@@ -241,7 +241,47 @@ class GameWidget(AsyncWidget):
             self.background
         )
 
+        self.entities = [e for e in self.entities if e.type not in ["local_player", "remote_player"]]
+
         self.terrain.update_chunks(painter)
+
+        for p in self.players:
+            obj = self.build_entity(
+                key="local_player",
+                data={
+                    "icon": "face_smile.png",
+                    "animated": False,
+                    "properties": {
+                        "mass": 0.8
+                    }
+                },
+                x=(p.x),
+                y=(p.y),
+                width=p.width,
+                height=p.height,
+                entity_type="local_player"
+            )
+            self.entities.append(obj)
+            print(f"Drawing local player at ({p.x}, {p.y}) with screen position ({p.x}, {p.y})")
+
+        for p in self.remote_players.values():
+            obj = self.build_entity(
+                key="remote_player",
+                data={
+                    "icon": "face_smile.png",
+                    "animated": False,
+                    "properties": {
+                        "mass": 0.8
+                    }
+                },
+                x=(p.x),
+                y=(p.y),
+                width=p.width,
+                height=p.height,
+                entity_type="remote_player"
+            )
+            self.entities.append(obj)
+            print(f"Drawing remote player at ({p.x}, {p.y}) with screen position ({p.x}, {p.y})")
 
         for entity in self.entities:
             entity.update(painter)
@@ -254,47 +294,23 @@ class GameWidget(AsyncWidget):
             pen = QPen(self.border_color, self.border_size)
         else:
             pen = QPen(self.player.color.darker(), 4)
-
         painter.setPen(pen)
 
-        for p in self.players:
-            painter.setBrush(p.color)
-            painter.setPen(Qt.PenStyle.NoPen)
-
-            painter.drawEllipse(
-                int(p.x - self.camera.x),
-                int(p.y - self.camera.y),
-                p.width,
-                p.height
-            )
-
-        for p in self.remote_players.values():
-            painter.setBrush(p.color)
-            painter.setPen(Qt.PenStyle.NoPen)
-
-            painter.drawEllipse(
-                int(p.x - self.camera.x),
-                int(p.y - self.camera.y),
-                p.width,
-                p.height
-            )
-
-        painter.end()
-
-    def build_entity(self, key, data, x, y):
+    def build_entity(self, key, data, x, y, width=64, height=64, entity_type=None):
         props = data.get("properties", {})
 
         return Entity(
             x=x,
             y=y,
-            width=64,
-            height=64,
+            width=width,
+            height=height,
             image_path=f"{self.project_dir}/assets/sprites/{data['icon']}",
             animated=data.get("animated", False),
             game_widget=self,
             mass=props.get("mass"),
             quantity=props.get("quantity"),
-            data=data
+            data=data,
+            type=entity_type
         )
 
     def setup_entities(self):
