@@ -90,6 +90,8 @@ class GameWidget(AsyncWidget):
 
         self.bg_sheet = QPixmap("../assets/sprites/sprinkling_power.png")
 
+        self.icon = "face_neutral.png"  # Default icon for the player
+
         # Currently pressed keys
         self.keys_pressed = set()
 
@@ -249,7 +251,7 @@ class GameWidget(AsyncWidget):
             obj = self.build_entity(
                 key="local_player",
                 data={
-                    "icon": "face_smile.png",
+                    "icon": self.icon,
                     "animated": False,
                     "properties": {
                         "mass": 0.8
@@ -268,7 +270,7 @@ class GameWidget(AsyncWidget):
             obj = self.build_entity(
                 key="remote_player",
                 data={
-                    "icon": "face_smile.png",
+                    "icon": self.icon,
                     "animated": False,
                     "properties": {
                         "mass": 0.8
@@ -471,6 +473,9 @@ class GameWidget(AsyncWidget):
         
         if jumping:
             self._do_jump()
+            self.icon = "face_smile.png"  # Change icon to indicate jumping
+        else:
+            self.icon = "face_neutral.png"  # Change icon back to neutral when not jumping
 
         self.player.is_on_ground = False  # Will be set to True if collision with ground is detected later
 
