@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import QLabel
 import time
 import asyncio
 import random
+import itertools
 
 
 player = Player()
@@ -37,11 +38,46 @@ class GameWidget(AsyncWidget):
         # Game state
         self.is_paused = False
 
+        self.icon = "face.png"  # Default icon for the player
+
+        self.entities = []
+        self.platforms = []
+        self.project_dir = getProjectDir()
+        self.entity_data = getObjects().entities()
+        print(f"Loaded entity data: {self.entity_data}")
+
         self.players = []
         self.player = Player()
         self.players.append(self.player)
 
         self.remote_players = {}
+        self.player_entities = {}
+
+        self.player_frame_speed = 0.5  # Set the frame speed for the player entity animation
+
+        self.player_entity = self.build_entity(
+            key="local_player",
+            data={
+                "icon": self.icon,
+                "animated": True,
+                "frame_speed": self.player_frame_speed,
+                "frames": [0, 1],  # Specify the frame indices to use for the player entity
+                # "icon_frames": [
+                #     "src/stringwalk/assets/sprites/face_neutral.png",
+                #     "src/stringwalk/assets/sprites/face_happy.png"
+                # ],
+                "properties": {
+                    "mass": 0.8
+                }
+            },
+            x=self.player.x,
+            y=self.player.y,
+            width=self.player.width,
+            height=self.player.height,
+            entity_type="local_player"
+        )
+        self.player_entities[id(self.player)] = self.player_entity
+        self.entities.append(self.player_entity)
 
         self.camera = Camera(self)
         self.terrain = Terrain(player=self.player, game_widget=self)
@@ -53,12 +89,6 @@ class GameWidget(AsyncWidget):
         self.background = QLinearGradient(0, 0, self.width(), self.height())
         self.background.setColorAt(0, QColor("#1e1e1e"))
         self.background.setColorAt(1, QColor("#000080"))
-
-        self.entities = []
-        self.platforms = []
-        self.project_dir = getProjectDir()
-        self.entity_data = getObjects().entities()
-        print(f"Loaded entity data: {self.entity_data}")
         
         self.gravity = 0.25
         self.jump_velocity = -14.0
@@ -89,8 +119,6 @@ class GameWidget(AsyncWidget):
         self.timer.start(self.update_interval)
 
         self.bg_sheet = QPixmap("../assets/sprites/sprinkling_power.png")
-
-        self.icon = "face_neutral.png"  # Default icon for the player
 
         # Currently pressed keys
         self.keys_pressed = set()
@@ -243,47 +271,42 @@ class GameWidget(AsyncWidget):
             self.background
         )
 
-        self.entities = [e for e in self.entities if e.type not in ["local_player", "remote_player"]]
-
         self.terrain.update_chunks(painter)
 
-        for p in self.players:
-            obj = self.build_entity(
-                key="local_player",
-                data={
-                    "icon": self.icon,
-                    "animated": False,
-                    "properties": {
-                        "mass": 0.8
-                    }
-                },
-                x=(p.x),
-                y=(p.y),
-                width=p.width,
-                height=p.height,
-                entity_type="local_player"
-            )
-            self.entities.append(obj)
-            print(f"Drawing local player at ({p.x}, {p.y}) with screen position ({p.x}, {p.y})")
+        for p in itertools.chain(self.players, self.remote_players.values()):
 
-        for p in self.remote_players.values():
-            obj = self.build_entity(
-                key="remote_player",
-                data={
-                    "icon": self.icon,
-                    "animated": False,
-                    "properties": {
-                        "mass": 0.8
-                    }
-                },
-                x=(p.x),
-                y=(p.y),
-                width=p.width,
-                height=p.height,
-                entity_type="remote_player"
-            )
-            self.entities.append(obj)
-            print(f"Drawing remote player at ({p.x}, {p.y}) with screen position ({p.x}, {p.y})")
+            if id(p) not in self.player_entities:
+                entity_type = "local_player" if p == self.player else "remote_player"
+
+                obj = self.build_entity(
+                    key=entity_type,
+                    data={
+                        "icon": self.icon,
+                        "animated": True,
+                        "frame_speed": self.player_frame_speed,
+                        "icon_frames": [
+                            "src/stringwalk/assets/sprites/face_neutral.png",
+                            "src/stringwalk/assets/sprites/face_happy.png"
+                        ],
+                        "properties": {
+                            "mass": 0.8
+                        }
+                    },
+                    x=p.x,
+                    y=p.y,
+                    width=p.width,
+                    height=p.height,
+                    entity_type=entity_type
+                )
+
+                self.player_entities[id(p)] = obj
+                self.entities.append(obj)
+
+            entity = self.player_entities[id(p)]
+
+            # Keep visual entity synced with actual player
+            entity.x = p.x
+            entity.y = p.y
 
         for entity in self.entities:
             entity.update(painter)
@@ -308,6 +331,8 @@ class GameWidget(AsyncWidget):
             height=height,
             image_path=f"{self.project_dir}/assets/sprites/{data['icon']}",
             animated=data.get("animated", False),
+            animation_type=data.get("animation_type"),
+            frame_speed=data.get("frame_speed", 0.1),
             game_widget=self,
             mass=props.get("mass"),
             quantity=props.get("quantity"),
@@ -452,6 +477,10 @@ class GameWidget(AsyncWidget):
             label.adjustSize()
 
         self.handle_movement(delta_time)
+
+        for entity in self.entities:
+            entity.update_animation(delta_time)
+
         self.camera.update(delta_time)
         self.update()
 

@@ -1,3 +1,4 @@
+from ..graphics.Image import is_frame_empty
 from PyQt6.QtGui import QMovie, QPixmap
 from dataclasses import dataclass
 
@@ -52,9 +53,10 @@ class Entity:
             if data.get("icon_frames"):
                 self.animation_type = "frames"
 
-            elif self.animated or (image_path and image_path.lower().endswith(".gif")):
+            elif self.animated and (image_path and image_path.lower().endswith(".gif")):
                 self.animation_type = "gif"
-
+            elif self.animated and (image_path and image_path.lower().endswith(".png")):
+                self.animation_type = "spritesheet"
             else:
                 self.animation_type = "static"
         else:
@@ -69,21 +71,65 @@ class Entity:
             self.movie.start()
 
         elif self.animation_type == "frames":
+            if not data:
+                print("ERROR: frames animation but no data!")
+                self.animation_type = "static"
+                return
+
             frame_list = data.get("icon_frames", [])
-            self.frames = [
-                QPixmap(path) for path in frame_list
-            ]
+
+            if not frame_list:
+                print("ERROR: frames animation but no icon_frames:", data)
+                self.animation_type = "static"
+                return
+
+            self.frames = []
+            for path in frame_list:
+                pix = QPixmap(path)
+                if not pix.isNull():
+                    self.frames.append(pix)
+                else:
+                    print(f"Failed to load frame: {path}")
+
+            print(f"Loaded {len(self.frames)} frames for entity at ({self.x}, {self.y})")
             self.current_frame = self.frames[0] if self.frames else QPixmap()
 
         else:
             self.image = QPixmap(image_path)
-            self.current_frame = self.image
+
+            if self.animation_type == "spritesheet":
+                # Standard size for spritesheet frames
+                x_size = 16
+                y_size = 16
+                
+                s_width = self.image.width()
+                s_height = self.image.height()
+
+                x_frames = s_width // x_size
+                y_frames = s_height // y_size
+ 
+                for y in range(x_frames):
+                    for x in range(y_frames):
+                        frame = self.image.copy(x * x_size, y * y_size, x_size, y_size)
+                        if not frame.isNull() and not is_frame_empty(self.image, x * x_size, y * y_size, x_size, y_size):
+                            self.frames.append(frame)
+
+                i_frames = data.get("frames", None)
+
+                if i_frames:
+                    # Filter frames based on i_frames indices
+                    self.frames = [self.frames[i] for i in i_frames if 0 <= i < len(self.frames)]
+
+                print(len(self.frames), "frames in spritesheet")
+                print(self.frames)
+            else:
+                self.current_frame = self.image
 
     # ---------------------------
     # Animation update
     # ---------------------------
     def update_animation(self, dt):
-        if self.animation_type == "frames":
+        if self.animation_type == "frames" or self.animation_type == "spritesheet":
             if not self.frames:
                 return
 
@@ -105,6 +151,8 @@ class Entity:
     def update(self, painter):
         if self.animated and self.movie:
             pixmap = self.movie.currentPixmap()
+        elif self.animation_type == "frames" or self.animation_type == "spritesheet":
+            pixmap = self.current_frame
         else:
             pixmap = self.image
 
