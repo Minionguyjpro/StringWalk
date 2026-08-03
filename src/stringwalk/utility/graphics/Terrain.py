@@ -39,6 +39,14 @@ class Terrain:
         )
         self.dirt_brush = QBrush(self.dirt_pixmap)
 
+        self.grass_pixmap = QPixmap(f"{getProjectDir()}/assets/sprites/grass.png").scaled(
+            self.tile_size,
+            self.tile_size,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.FastTransformation
+        )
+        self.grass_brush = QBrush(self.grass_pixmap)
+
         print(f"Chunk size: {self.chunk_size}, Tile size: {self.tile_size}, Render distance: {self.render_distance}")
 
         self.y_standard = 10
@@ -77,6 +85,15 @@ class Terrain:
                         fill_height,
                         self.dirt_brush
                     )
+                
+                # Separate texture for the top tile (surface)
+                painter.drawPixmap(
+                    int(screen_x),
+                    int(screen_y),
+                    self.tile_size,
+                    self.tile_size,
+                    self.grass_pixmap
+                )
 
     def is_solid_at(self, x, y):
         return y >= self.get_surface_y(x)

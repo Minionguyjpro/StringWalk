@@ -53,7 +53,7 @@ class GameWidget(AsyncWidget):
         self.remote_players = {}
         self.player_entities = {}
 
-        self.player_frame_speed = 0.5  # Set the frame speed for the player entity animation
+        self.player_frame_speed = 0.75  # Set the frame speed for the player entity animation
 
         self.player_entity = self.build_entity(
             key="local_player",
@@ -61,11 +61,7 @@ class GameWidget(AsyncWidget):
                 "icon": self.icon,
                 "animated": True,
                 "frame_speed": self.player_frame_speed,
-                "frames": [0, 1],  # Specify the frame indices to use for the player entity
-                # "icon_frames": [
-                #     "src/stringwalk/assets/sprites/face_neutral.png",
-                #     "src/stringwalk/assets/sprites/face_happy.png"
-                # ],
+                "frames": [0, 2],  # Specify the frame indices to use for the player entity
                 "properties": {
                     "mass": 0.8
                 }
@@ -488,10 +484,6 @@ class GameWidget(AsyncWidget):
         if self.player.is_on_ground:
             self.player.velocity_y = self.jump_velocity
             self.player.is_on_ground = False
-        for entities in self.entities:
-            if entities.is_on_ground:
-                entities.velocity_y = self.jump_velocity
-                entities.is_on_ground = False
 
     def handle_movement(self, delta_time=1 / 60):
         # Scale per-frame values so gameplay speed stays consistent across FPS values.
